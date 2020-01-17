@@ -82,7 +82,7 @@
                                 </div>
                                 <div class="py-3 text-center">
                                     <h3 class="font-weight-bold">Pixelfed</h3>
-                                    <p class="mb-0 lead">Photo sharing for everyone</p>
+                                    <p class="mb-0">Please note: this instance is for MLP:FiM related content. Accounts without avatars will be deleted.</p>
                                 </div>
                                 <div>
                                     @if(true === config('pixelfed.open_registration'))
@@ -158,7 +158,7 @@
                                                 </button>
                                             </div>
                                         </div>
-                                        <p class="mb-0 font-weight-bold text-lighter small">By signing up, you agree to our <a href="{{route('site.terms')}}" class="text-muted">Terms of Use</a> and <a href="{{route('site.privacy')}}" class="text-muted">Privacy Policy</a>.</p>
+                                        <p class="mb-0 font-weight-bold text-lighter small">By signing up, you agree to our <a href="{{route('site.terms')}}" class="text-muted">Terms of Use</a>, <a href="{{route('site.privacy')}}" class="text-muted">Privacy Policy</a> and confirm that you are a brony.</p>
                                     </form>
                                     @else
                                     <div style="min-height: 350px" class="d-flex justify-content-center align-items-center">
