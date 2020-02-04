@@ -34,13 +34,19 @@
     
     @stack('styles')
     
-    <script type="text/javascript">window.App = {config: {!!App\Util\Site\Config::json()!!}};</script>
+    <script type="text/javascript">window._sharedData = {curUser: {}, version: 0}; window.App = {config: {!!App\Util\Site\Config::json()!!}};</script>
     
 </head>
 <body class="loggedIn">
     @include('layouts.partial.nav')
     <main id="content">
         @yield('content')
+        <noscript>
+            <div class="container">
+                <p class="pt-5 text-center lead">Please enable javascript to view this content.</p>
+            </div>
+        
+        </noscript>
         <div class="modal pr-0" tabindex="-1" role="dialog" id="composeModal">
           <div class="modal-dialog" role="document">
             <div class="modal-content">
