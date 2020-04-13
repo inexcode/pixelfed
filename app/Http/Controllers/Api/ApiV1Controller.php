@@ -152,7 +152,7 @@ class ApiV1Controller extends Controller
         $this->validate($request, [
             'display_name'      => 'nullable|string',
             'note'              => 'nullable|string',
-            'locked'            => 'nullable|boolean',
+            'locked'            => 'nullable',
             // 'source.privacy'    => 'nullable|in:unlisted,public,private',
             // 'source.sensitive'  => 'nullable|boolean'
         ]);
@@ -205,19 +205,32 @@ class ApiV1Controller extends Controller
     public function accountFollowersById(Request $request, $id)
     {
         abort_if(!$request->user(), 403);
+
+        $user = $request->user();
         $profile = Profile::whereNull('status')->findOrFail($id);
+        $limit = $request->input('limit') ?? 40;
 
         if($profile->domain) {
             $res = [];
         } else {
-            $settings = $profile->user->settings;
-            if($settings->show_profile_followers == true) {
-                $limit = $request->input('limit') ?? 40;
+            if($profile->id == $user->profile_id) {
                 $followers = $profile->followers()->paginate($limit);
                 $resource = new Fractal\Resource\Collection($followers, new AccountTransformer());
                 $res = $this->fractal->createData($resource)->toArray();
             } else {
-                $res = [];
+                if($profile->is_private) {
+                    abort_if(!$profile->followedBy($user->profile), 403);
+                }
+                $settings = $profile->user->settings;
+                if( in_array($user->profile_id, $profile->blockedIds()->toArray()) || 
+                    $settings->show_profile_followers == false
+                ) {
+                    $res = [];
+                } else {
+                    $followers = $profile->followers()->paginate($limit);
+                    $resource = new Fractal\Resource\Collection($followers, new AccountTransformer());
+                    $res = $this->fractal->createData($resource)->toArray();
+                }
             }
         }
         return response()->json($res);
@@ -233,21 +246,35 @@ class ApiV1Controller extends Controller
     public function accountFollowingById(Request $request, $id)
     {
         abort_if(!$request->user(), 403);
+
+        $user = $request->user();
         $profile = Profile::whereNull('status')->findOrFail($id);
+        $limit = $request->input('limit') ?? 40;
 
         if($profile->domain) {
             $res = [];
         } else {
-            $settings = $profile->user->settings;
-            if($settings->show_profile_following == true) {
-                $limit = $request->input('limit') ?? 40;
+            if($profile->id == $user->profile_id) {
                 $following = $profile->following()->paginate($limit);
                 $resource = new Fractal\Resource\Collection($following, new AccountTransformer());
                 $res = $this->fractal->createData($resource)->toArray();
             } else {
-                $res = [];
+                if($profile->is_private) {
+                    abort_if(!$profile->followedBy($user->profile), 403);
+                }
+                $settings = $profile->user->settings;
+                if( in_array($user->profile_id, $profile->blockedIds()->toArray()) || 
+                    $settings->show_profile_following == false
+                ) {
+                    $res = [];
+                } else {
+                    $following = $profile->following()->paginate($limit);
+                    $resource = new Fractal\Resource\Collection($following, new AccountTransformer());
+                    $res = $this->fractal->createData($resource)->toArray();
+                }
             }
         }
+
 
         return response()->json($res);
     }
@@ -749,6 +776,14 @@ class ApiV1Controller extends Controller
 
         $status = Status::findOrFail($id);
 
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
+
         $like = Like::firstOrCreate([
             'profile_id' => $user->profile_id,
             'status_id' => $status->id
@@ -779,6 +814,14 @@ class ApiV1Controller extends Controller
         $user = $request->user();
 
         $status = Status::findOrFail($id);
+
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
 
         $like = Like::whereProfileId($user->profile_id)
             ->whereStatusId($status->id)
@@ -1407,7 +1450,18 @@ class ApiV1Controller extends Controller
     {
         abort_if(!$request->user(), 403);
 
-        $status = Status::whereVisibility('public')->findOrFail($id);
+        $user = $request->user();
+
+        $status = Status::findOrFail($id);
+
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
+
         $resource = new Fractal\Resource\Item($status, new StatusTransformer());
         $res = $this->fractal->createData($resource)->toArray();
 
@@ -1425,7 +1479,17 @@ class ApiV1Controller extends Controller
     {
         abort_if(!$request->user(), 403);
 
-        $status = Status::whereVisibility('public')->findOrFail($id);
+        $user = $request->user();
+
+        $status = Status::findOrFail($id);
+
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
 
         // Return empty response since we don't handle threading like this
         $res = [
@@ -1447,7 +1511,17 @@ class ApiV1Controller extends Controller
     {
         abort_if(!$request->user(), 403);
 
-        $status = Status::whereVisibility('public')->findOrFail($id);
+        $user = $request->user();
+
+        $status = Status::findOrFail($id);
+
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
 
         // Return empty response since we don't handle support cards
         $res = [];
@@ -1472,7 +1546,17 @@ class ApiV1Controller extends Controller
         ]);
 
         $limit = $request->input('limit') ?? 40;
-        $status = Status::whereVisibility('public')->findOrFail($id);
+        $user = $request->user();
+        $status = Status::findOrFail($id);
+
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
+
         $shared = $status->sharedBy()->latest()->simplePaginate($limit);
         $resource = new Fractal\Resource\Collection($shared, new AccountTransformer());
         $res = $this->fractal->createData($resource)->toArray();
@@ -1503,7 +1587,17 @@ class ApiV1Controller extends Controller
         ]);
 
         $limit = $request->input('limit') ?? 40;
-        $status = Status::whereVisibility('public')->findOrFail($id);
+        $user = $request->user();
+        $status = Status::findOrFail($id);
+
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
+
         $liked = $status->likedBy()->latest()->simplePaginate($limit);
         $resource = new Fractal\Resource\Collection($liked, new AccountTransformer());
         $res = $this->fractal->createData($resource)->toArray();
@@ -1651,6 +1745,14 @@ class ApiV1Controller extends Controller
         $user = $request->user();
         $status = Status::findOrFail($id);
 
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
+
         $share = Status::firstOrCreate([
             'profile_id' => $user->profile_id,
             'reblog_of_id' => $status->id,
@@ -1681,6 +1783,14 @@ class ApiV1Controller extends Controller
         
         $user = $request->user();
         $status = Status::findOrFail($id);
+
+        if($status->profile_id !== $user->profile_id) {
+            if($status->scope == 'private') {
+                abort_if(!$status->profile->followedBy($user->profile), 403);
+            } else {
+                abort_if(!in_array($status->scope, ['public','unlisted']), 403);
+            }
+        }
 
         Status::whereProfileId($user->profile_id)
           ->whereReblogOfId($status->id)
