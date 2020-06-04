@@ -50,7 +50,7 @@
                 <div class="col-12 col-md-6 d-none d-md-block">
                     <div class="m-my-4">
                         <p class="display-2 font-weight-bold">Photo Sharing</p>
-                        <p class="h1 font-weight-bold">For Everyone.</p>
+                        <p class="h1 font-weight-bold">For Ponies.</p>
                     </div>
                 </div>
                 <div class="col-12 col-md-5 offset-md-1">
