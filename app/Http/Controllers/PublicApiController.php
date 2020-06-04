@@ -20,7 +20,7 @@ use League\Fractal;
 use App\Transformer\Api\{
     AccountTransformer,
     RelationshipTransformer,
-    StatusTransformer,
+    StatusTransformer
 };
 use App\Services\{
     AccountService,
@@ -239,38 +239,10 @@ class PublicApiController extends Controller
         $max = $request->input('max_id');
         $limit = $request->input('limit') ?? 3;
 
-        $private = Cache::remember('profiles:private', now()->addMinutes(1440), function() {
-            return Profile::whereIsPrivate(true)
-                ->orWhere('unlisted', true)
-                ->orWhere('status', '!=', null)
-                ->pluck('id')
-                ->toArray();
-        });
-
-        // if(Auth::check()) {
-        //     // $pid = Auth::user()->profile->id;
-        //     // $filters = UserFilter::whereUserId($pid)
-        //     //           ->whereFilterableType('App\Profile')
-        //     //           ->whereIn('filter_type', ['mute', 'block'])
-        //     //           ->pluck('filterable_id')->toArray();
-        //     // $filtered = array_merge($private->toArray(), $filters);
-        //     $filtered = UserFilterService::filters(Auth::user()->profile_id);
-        // } else {
-        //     // $filtered = $private->toArray();
-        //     $filtered = [];
-        // }
-
-        $filtered = Auth::check() ? array_merge($private, UserFilterService::filters(Auth::user()->profile_id)) : [];
-        // if($max == 0) {
-        //     $res = PublicTimelineService::count();
-        //     if($res == 0) {
-        //         PublicTimelineService::warmCache();
-        //         $res = PublicTimelineService::get(0,4);
-        //     } else {
-        //         $res = PublicTimelineService::get(0,4);
-        //     }
-        //     return response()->json($res);
-        // } 
+        $filtered = UserFilter::whereUserId(Auth::user()->profile_id)
+                  ->whereFilterableType('App\Profile')
+                  ->whereIn('filter_type', ['mute', 'block'])
+                  ->pluck('filterable_id')->toArray();
 
         if($min || $max) {
             $dir = $min ? '>' : '<';
@@ -295,15 +267,13 @@ class PublicApiController extends Controller
                         'created_at',
                         'updated_at'
                       )->where('id', $dir, $id)
-                      ->with('profile', 'hashtags', 'mentions')
                       ->whereIn('type', ['photo', 'photo:album', 'video', 'video:album', 'photo:video:album'])
-                      ->whereLocal(true)
                       ->whereNotIn('profile_id', $filtered)
+                      ->whereLocal(true)
                       ->whereVisibility('public')
                       ->orderBy('created_at', 'desc')
                       ->limit($limit)
                       ->get();
-                      //->toSql();
         } else {
             $timeline = Status::select(
                         'id', 
@@ -325,13 +295,12 @@ class PublicApiController extends Controller
                         'reblogs_count',
                         'updated_at'
                       )->whereIn('type', ['photo', 'photo:album', 'video', 'video:album', 'photo:video:album'])
+                      ->whereNotIn('profile_id', $filtered)
                       ->with('profile', 'hashtags', 'mentions')
                       ->whereLocal(true)
-                      ->whereNotIn('profile_id', $filtered)
                       ->whereVisibility('public')
                       ->orderBy('created_at', 'desc')
                       ->simplePaginate($limit);
-                      //->toSql();
         }
 
         $fractal = new Fractal\Resource\Collection($timeline, new StatusTransformer());
@@ -499,11 +468,31 @@ class PublicApiController extends Controller
     public function accountFollowing(Request $request, $id)
     {
         abort_unless(Auth::check(), 403);
-        $profile = Profile::with('user')->whereNull('status')->whereNull('domain')->findOrFail($id);
-        if(Auth::id() != $profile->user_id && $profile->is_private || !$profile->user->settings->show_profile_following) {
-            return response()->json([]);
+
+        $profile = Profile::with('user')
+            ->whereNull('status')
+            ->whereNull('domain')
+            ->findOrFail($id);
+
+        // filter by username
+        $search = $request->input('fbu');
+        $owner = Auth::id() == $profile->user_id;
+        $filter = ($owner == true) && ($search != null);
+
+        abort_if($owner == false && $profile->is_private == true && !$profile->followedBy(Auth::user()->profile), 404);
+        abort_if($profile->user->settings->show_profile_following == false && $owner == false, 404);
+
+        if($search) {
+            abort_if(!$owner, 404);
+            $following = $profile->following()
+                    ->where('profiles.username', 'like', '%'.$search.'%')
+                    ->orderByDesc('followers.created_at')
+                    ->paginate(10);
+        } else {
+            $following = $profile->following()
+                ->orderByDesc('followers.created_at')
+                ->paginate(10);
         }
-        $following = $profile->following()->orderByDesc('followers.created_at')->paginate(10);
         $resource = new Fractal\Resource\Collection($following, new AccountTransformer());
         $res = $this->fractal->createData($resource)->toArray();
 
@@ -569,23 +558,23 @@ class PublicApiController extends Controller
             'likes_count',
             'reblogs_count',
             'scope',
+            'visibility',
             'local',
+            'cw_summary',
             'created_at',
             'updated_at'
           )->whereProfileId($profile->id)
           ->whereIn('type', $scope)
-          ->whereLocal(true)
-          ->whereNull('uri')
           ->where('id', $dir, $id)
           ->whereIn('visibility', $visibility)
-          ->latest()
           ->limit($limit)
+          ->orderByDesc('id')
           ->get();
 
         $resource = new Fractal\Resource\Collection($timeline, new StatusTransformer());
         $res = $this->fractal->createData($resource)->toArray();
 
-        return response()->json($res);
+        return response()->json($res, 200, [], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
     }
 
 }

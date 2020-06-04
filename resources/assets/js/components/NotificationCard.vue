@@ -2,19 +2,19 @@
 <div>
 	<transition name="fade">
 		<div class="card notification-card shadow-none border">
-			<div class="card-header bg-white">
-				<p class="mb-0 d-flex align-items-center justify-content-between">
-					<span data-toggle="tooltip" data-placement="bottom"><i class="fas fa-redo fa-lg text-white"></i></span>
-					<span class="small text-dark text-uppercase font-weight-bold">Alerts</span>
-					<a class="text-decoration-none text-muted" href="/account/activity"><i class="fas fa-inbox fa-lg"></i></a>
-				</p>
-			</div>
 			<div class="card-body loader text-center" style="height: 200px;">
 				<div class="spinner-border" role="status">
 					<span class="sr-only">Loading...</span>
 				</div>
 			</div>
-			<div class="card-body pt-2 px-0 py-0 contents" style="max-height: 200px; overflow-y: scroll;">
+			<div v-if="notifications.length > 0" class="card-body px-0 py-0 contents" style="max-height: 240px; overflow-y: scroll;">
+				<div v-if="profile.locked" class="media align-items-center mt-n2 px-3 py-2 border-bottom border-lighter bg-light cursor-pointer" @click="redirect('/account/follow-requests')">
+					<div class="media-body font-weight-light pt-2 small d-flex align-items-center justify-content-between">
+						<p class="mb-0 text-lighter"><i class="fas fa-cog text-light"></i></p>
+						<p class="text-center pt-1 mb-1 text-dark font-weight-bold"><strong>{{followRequests.count}}</strong> Follow Requests</p>
+						<p class="mb-0 text-lighter"><i class="fas fa-chevron-right"></i></p>
+					</div>
+				</div>
 				<div v-if="notifications.length > 0" class="media align-items-center px-3 py-2 border-bottom border-light" v-for="(n, index) in notifications">
 					<img class="mr-2 rounded-circle" style="border:1px solid #ccc" :src="n.account.avatar" alt="" width="32px" height="32px" onerror="this.onerror=null;this.src='/storage/avatars/default.png';">
 					<div class="media-body font-weight-light small">
@@ -40,7 +40,7 @@
 						</div>
 						<div v-else-if="n.type == 'share'">
 							<p class="my-0">
-								<a :href="n.account.url" class="font-weight-bold text-dark word-break" :title="n.account.username">{{truncate(n.account.username)}}</a> shared your <a class="font-weight-bold" v-bind:href="n.status.reblog.url">post</a>.
+								<a :href="n.account.url" class="font-weight-bold text-dark word-break" :title="n.account.username">{{truncate(n.account.username)}}</a> shared your <a class="font-weight-bold" v-bind:href="n.status.url">post</a>.
 							</p>
 						</div>
 						<div v-else-if="n.type == 'modlog'">
@@ -76,11 +76,20 @@
 				notifications: {},
 				notificationCursor: 2,
 				notificationMaxId: 0,
+				profile: {
+					locked: false
+				},
+				followRequests: null
 			};
 		},
 
 		mounted() {
+			let self = this;
 			this.fetchNotifications();
+			setTimeout(function() {
+				self.profile = window._sharedData.curUser;
+				self.fetchFollowRequests();
+			}, 500);
 		},
 
 		updated() {
@@ -88,14 +97,9 @@
 
 		methods: {
 			fetchNotifications() {
-				axios.get('/api/pixelfed/v1/notifications')
+				axios.get('/api/pixelfed/v1/notifications?pg=true')
 				.then(res => {
-					let data = res.data.filter(n => {
-						if(n.type == 'share' && !status) {
-							return false;
-						}
-						return true;
-					});
+					let data = res.data;
 					let ids = res.data.map(n => n.id);
 					this.notificationMaxId = Math.min(...ids);
 					this.notifications = data;
@@ -143,29 +147,7 @@
 			},
 
 			timeAgo(ts) {
-				let date = Date.parse(ts);
-				let seconds = Math.floor((new Date() - date) / 1000);
-				let interval = Math.floor(seconds / 31536000);
-				if (interval >= 1) {
-					return interval + "y";
-				}
-				interval = Math.floor(seconds / 604800);
-				if (interval >= 1) {
-					return interval + "w";
-				}
-				interval = Math.floor(seconds / 86400);
-				if (interval >= 1) {
-					return interval + "d";
-				}
-				interval = Math.floor(seconds / 3600);
-				if (interval >= 1) {
-					return interval + "h";
-				}
-				interval = Math.floor(seconds / 60);
-				if (interval >= 1) {
-					return interval + "m";
-				}
-				return Math.floor(seconds) + "s";
+				return window.App.util.format.timeAgo(ts);
 			},
 
 			mentionUrl(status) {
@@ -224,6 +206,19 @@
 						}
 					}
 				});
+			},
+
+			fetchFollowRequests() {
+				if(window._sharedData.curUser.locked == true) {
+					axios.get('/account/follow-requests.json')
+					.then(res => {
+						this.followRequests = res.data;
+					})
+				}
+			},
+
+			redirect(url) {
+				window.location.href = url;
 			}
 		}
 	}

@@ -23,7 +23,7 @@ return [
     | This value is the version of your Pixelfed instance.
     |
     */
-    'version' => '0.10.8',
+    'version' => '0.10.9',
 
     /*
     |--------------------------------------------------------------------------
@@ -221,7 +221,7 @@ return [
     |
     */ 
     'user_invites' => [
-        'enabled' => false, //env('PF_USER_INVITES', false),
+        'enabled' => env('PF_USER_INVITES', false),
         'limit' => [
             'total' => (int) env('PF_USER_INVITES_TOTAL_LIMIT', 0),
             'daily' => (int) env('PF_USER_INVITES_DAILY_LIMIT', 0),
@@ -236,10 +236,10 @@ return [
 
     'import' => [
         'instagram' => [
-            'enabled' => false,
+            'enabled' => env('IMPORT_INSTAGRAM', false),
             'limits' => [
                 'posts' => (int) env('IMPORT_INSTAGRAM_POST_LIMIT', 100),
-                'size' => (int) env('IMPORT_INSTAGRAM_SIZE_LIMIT', 250)
+                'size' => (int) env('IMPORT_INSTAGRAM_SIZE_LIMIT', 5000)
             ]
         ]
     ],

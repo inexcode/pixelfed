@@ -18,7 +18,10 @@ class Profile extends Model
      */
     public $incrementing = false;
     
-    protected $dates = ['deleted_at'];
+    protected $dates = [
+        'deleted_at',
+        'last_fetched_at'
+    ];
     protected $hidden = ['private_key'];
     protected $visible = ['id', 'user_id', 'username', 'name'];
     protected $fillable = ['user_id'];
@@ -137,8 +140,7 @@ class Profile extends Model
         $url = Cache::remember('avatar:'.$this->id, now()->addYears(1), function () {
             $avatar = $this->avatar;
             $path = $avatar->media_path;
-            $version = hash('sha256', $avatar->change_count);
-            $path = "{$path}?v={$version}";
+            $path = "{$path}?v={$avatar->change_count}";
 
             return config('app.url') . Storage::url($path);
         });
