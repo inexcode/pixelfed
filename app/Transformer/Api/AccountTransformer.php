@@ -33,8 +33,9 @@ class AccountTransformer extends Fractal\TransformerAbstract
 			'website' => $profile->website,
 			'local' => (bool) $local,
 			'is_admin' => (bool) $is_admin,
-			'created_at' => $profile->created_at->timestamp,
-			'header_bg' => $profile->header_bg
+			'created_at' => $profile->created_at->toJSON(),
+			'header_bg' => $profile->header_bg,
+			'last_fetched_at' => optional($profile->last_fetched_at)->toJSON()
 		];
 	}
 

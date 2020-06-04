@@ -3,10 +3,10 @@
   <div v-if="!loaded" style="height: 80vh;" class="d-flex justify-content-center align-items-center">
       <img src="/img/pixelfed-icon-grey.svg" class="">
   </div>
-  <div v-if="loaded && warning" class="bg-white pt-3 border-bottom">
+  <div v-if="loaded && warning" class="bg-white mt-n4 pt-3 border-bottom">
     <div class="container">
       <p class="text-center font-weight-bold">You are blocking this account</p>
-      <p class="text-center font-weight-bold">Click <a href="#" class="cursor-pointer" @click.prevent="warning = false; fetchData()">here</a> to view this status</p>
+      <p class="text-center font-weight-bold"><a href="#" class="btn btn-primary font-weight-bold px-5" @click.prevent="warning = false; fetchData()">View Status</a></p>
     </div>
   </div>
   <div v-if="loaded && warning == false" class="postComponent">
@@ -42,7 +42,7 @@
                   </div>
                   <div v-if="ownerOrAdmin()">
                     <a class="dropdown-item font-weight-bold" href="#" v-on:click.prevent="toggleCommentVisibility">{{ showComments ? 'Disable' : 'Enable'}} Comments</a>
-                    <a class="dropdown-item font-weight-bold" :href="editUrl()">Edit</a>
+                    <a v-if="canEdit" class="dropdown-item font-weight-bold" :href="editUrl()">Edit</a>
                     <a class="dropdown-item font-weight-bold text-danger" v-on:click="deletePost(status)">Delete</a>
                   </div>
                 </div>
@@ -108,7 +108,7 @@
                           </span>
                           <span v-if="ownerOrAdmin()">
                             <a class="dropdown-item font-weight-bold" href="#" v-on:click.prevent="toggleCommentVisibility">{{ showComments ? 'Disable' : 'Enable'}} Comments</a>
-                            <a class="dropdown-item font-weight-bold" :href="editUrl()">Edit</a>
+                            <a v-if="canEdit" class="dropdown-item font-weight-bold" :href="editUrl()">Edit</a>
                             <a class="dropdown-item font-weight-bold text-danger" v-on:click="deletePost">Delete</a>
                           </span>
                         </div>
@@ -137,60 +137,70 @@
 
                   <div v-if="showComments">
                     <hr>
-                    <div class="postCommentsLoader text-center">
+                    <div class="postCommentsLoader text-center py-2">
                       <div class="spinner-border" role="status">
                         <span class="sr-only">Loading...</span>
                       </div>
                     </div>
                     <div class="postCommentsContainer d-none">
-                      <p v-if="status.reply_count > 10"class="mb-1 text-center load-more-link d-none"><a href="#" class="text-muted" v-on:click="loadMore">Load more comments</a></p>
+                      <p class="mb-1 text-center load-more-link d-none my-3">
+                        <a href="#" class="text-dark" v-on:click="loadMore" title="Load more comments" data-toggle="tooltip" data-placement="bottom">
+                          <svg class="bi bi-plus-circle" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="font-size:2em;">  <path fill-rule="evenodd" d="M8 3.5a.5.5 0 01.5.5v4a.5.5 0 01-.5.5H4a.5.5 0 010-1h3.5V4a.5.5 0 01.5-.5z" clip-rule="evenodd"/>  <path fill-rule="evenodd" d="M7.5 8a.5.5 0 01.5-.5h4a.5.5 0 010 1H8.5V12a.5.5 0 01-1 0V8z" clip-rule="evenodd"/>  <path fill-rule="evenodd" d="M8 15A7 7 0 108 1a7 7 0 000 14zm0 1A8 8 0 108 0a8 8 0 000 16z" clip-rule="evenodd"/></svg>
+                        </a>
+                      </p>
                       <div class="comments">
-                        <div v-for="(reply, index) in results" class="pb-3" :key="'tl' + reply.id + '_' + index">
-                          <div v-if="reply.sensitive == true">
-                            <span class="py-3">
-                              <a class="text-dark font-weight-bold mr-1" :href="reply.account.url" v-bind:title="reply.account.username">{{truncate(reply.account.username,15)}}</a>
-                              <span class="text-break">
-                                <span class="font-italic text-muted">This comment may contain sensitive material</span>
-                                <span class="text-primary cursor-pointer pl-1" @click="reply.sensitive = false;">Show</span>
-                              </span>
-                            </span>
-                          </div>
-                          <div v-else>
-                            <p class="d-flex justify-content-between align-items-top read-more" style="overflow-y: hidden;">
-                              <span>
+                        <div v-for="(reply, index) in results" class="pb-4 media" :key="'tl' + reply.id + '_' + index">
+                          <img :src="reply.account.avatar" class="rounded-circle border mr-3" width="42px" height="42px">
+                          <div class="media-body">
+                            <div v-if="reply.sensitive == true">
+                              <span class="py-3">
                                 <a class="text-dark font-weight-bold mr-1" :href="reply.account.url" v-bind:title="reply.account.username">{{truncate(reply.account.username,15)}}</a>
-                                <span class="text-break" v-html="reply.content"></span>
+                                <span class="text-break">
+                                  <span class="font-italic text-muted">This comment may contain sensitive material</span>
+                                  <span class="text-primary cursor-pointer pl-1" @click="reply.sensitive = false;">Show</span>
+                                </span>
                               </span>
-                              <span class="pl-2" style="min-width:38px">
-                                <span v-on:click="likeReply(reply, $event)"><i v-bind:class="[reply.favourited ? 'fas fa-heart fa-sm text-danger':'far fa-heart fa-sm text-lighter']"></i></span>
-                                  <post-menu :status="reply" :profile="user" :size="'sm'" :modal="'true'" class="d-inline-block pl-2" v-on:deletePost="deleteComment(reply.id, index)"></post-menu>
-                              </span>
-                            </p>
-                            <p class="">
-                              <a v-once class="text-muted mr-3 text-decoration-none small" style="width: 20px;" v-text="timeAgo(reply.created_at)" :href="reply.url"></a>
-                              <span v-if="reply.favourites_count" class="text-muted comment-reaction font-weight-bold mr-3">{{reply.favourites_count == 1 ? '1 like' : reply.favourites_count + ' likes'}}</span>
-                              <span class="text-muted comment-reaction font-weight-bold cursor-pointer" v-on:click="replyFocus(reply, index)">Reply</span>
-                            </p>
-                            <div v-if="reply.reply_count > 0" class="cursor-pointer" style="margin-left:30px;" v-on:click="toggleReplies(reply)">
-                               <span class="show-reply-bar"></span>
-                               <span class="comment-reaction font-weight-bold text-muted">{{reply.thread ? 'Hide' : 'View'}} Replies ({{reply.reply_count}})</span>
                             </div>
-                            <div v-if="reply.thread == true" class="comment-thread">
-                              <div v-for="(s, sindex) in reply.replies" class="pb-3" :key="'cr' + s.id + '_' + index">
-                                <p class="d-flex justify-content-between align-items-top read-more" style="overflow-y: hidden;">
-                                  <span>
-                                    <a class="text-dark font-weight-bold mr-1" :href="s.account.url" :title="s.account.username">{{s.account.username}}</a>
-                                    <span class="text-break" v-html="s.content"></span>
-                                  </span>
-                                  <span class="pl-2" style="min-width:38px">
-                                    <span v-on:click="likeReply(s, $event)"><i v-bind:class="[s.favourited ? 'fas fa-heart fa-sm text-danger':'far fa-heart fa-sm text-lighter']"></i></span>
-                                      <post-menu :status="s" :profile="user" :size="'sm'" :modal="'true'" class="d-inline-block pl-2" v-on:deletePost="deleteCommentReply(s.id, sindex, index) "></post-menu>
-                                  </span>
-                                </p>
-                                <p class="">
-                                  <a v-once class="text-muted mr-3 text-decoration-none small" style="width: 20px;" v-text="timeAgo(s.created_at)" :href="s.url"></a>
-                                  <span v-if="s.favourites_count" class="text-muted comment-reaction font-weight-bold mr-3">{{s.favourites_count == 1 ? '1 like' : s.favourites_count + ' likes'}}</span>
-                                </p>
+                            <div v-else>
+                              <p class="d-flex justify-content-between align-items-top read-more" style="overflow-y: hidden;">
+                                <span>
+                                  <a class="text-dark font-weight-bold mr-1 text-break" :href="reply.account.url" v-bind:title="reply.account.username">{{truncate(reply.account.username,15)}}</a>
+                                  <span class="text-break " v-html="reply.content"></span>
+                                </span>
+                                <span style="min-width:38px;">
+                                   <span v-on:click="likeReply(reply, $event)"><i v-bind:class="[reply.favourited ? 'fas fa-heart fa-sm text-danger':'far fa-heart fa-sm text-lighter']"></i></span>
+                                    <post-menu :status="reply" :profile="user" :size="'sm'" :modal="'true'" class="d-inline-block px-2" v-on:deletePost="deleteComment(reply.id, index)"></post-menu>
+                                </span>
+                              </p>
+                              <p class="">
+                                <a v-once class="text-muted mr-3 text-decoration-none small" style="width: 20px;" v-text="timeAgo(reply.created_at)" :href="permalinkUrl(reply)"></a>
+                                <span v-if="reply.favourites_count" class="text-muted comment-reaction font-weight-bold mr-3">{{reply.favourites_count == 1 ? '1 like' : reply.favourites_count + ' likes'}}</span>
+                                <span class="text-muted comment-reaction font-weight-bold cursor-pointer" v-on:click="replyFocus(reply, index)">Reply</span>
+                              </p>
+                              <div v-if="reply.reply_count > 0" class="cursor-pointer" v-on:click="toggleReplies(reply)">
+                                 <span class="show-reply-bar"></span>
+                                 <span class="comment-reaction font-weight-bold text-muted">{{reply.thread ? 'Hide' : 'View'}} Replies ({{reply.reply_count}})</span>
+                              </div>
+                              <div v-if="reply.thread == true" class="comment-thread">
+                                <div v-for="(s, sindex) in reply.replies" class="pb-3 media" :key="'cr' + s.id + '_' + index">
+                                  <img :src="s.account.avatar" class="rounded-circle border mr-3" width="25px" height="25px">
+                                  <div class="media-body">
+                                    <p class="d-flex justify-content-between align-items-top read-more" style="overflow-y: hidden;">
+                                      <span>
+                                        <a class="text-dark font-weight-bold mr-1" :href="s.account.url" :title="s.account.username">{{s.account.username}}</a>
+                                        <span class="text-break" v-html="s.content"></span>
+                                      </span>
+                                      <span class="pl-2" style="min-width:38px">
+                                        <span v-on:click="likeReply(s, $event)"><i v-bind:class="[s.favourited ? 'fas fa-heart fa-sm text-danger':'far fa-heart fa-sm text-lighter']"></i></span>
+                                          <post-menu :status="s" :profile="user" :size="'sm'" :modal="'true'" class="d-inline-block pl-2" v-on:deletePost="deleteCommentReply(s.id, sindex, index) "></post-menu>
+                                      </span>
+                                    </p>
+                                    <p class="">
+                                      <a v-once class="text-muted mr-3 text-decoration-none small" style="width: 20px;" v-text="timeAgo(s.created_at)" :href="s.url"></a>
+                                      <span v-if="s.favourites_count" class="text-muted comment-reaction font-weight-bold mr-3">{{s.favourites_count == 1 ? '1 like' : s.favourites_count + ' likes'}}</span>
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -225,7 +235,7 @@
                 </div>
               </div>
             </div>
-            <div v-if="showComments && user.length !== 0" class="card-footer bg-white px-2 py-0">
+           <div v-if="showComments && user.length !== 0" class="card-footer bg-white px-2 py-0">
               <ul class="nav align-items-center emoji-reactions" style="overflow-x: scroll;flex-wrap: unset;">
                 <li class="nav-item" v-on:click="emojiReaction" v-for="e in emoji">{{e}}</li>
               </ul>
@@ -247,7 +257,7 @@
 
     <div v-if="layout == 'moment'" class="momentui">
       <div class="bg-dark mt-md-n4">
-        <div class="container" v-on:dblclick="likeStatus">
+        <div class="container" style="max-width: 700px;">
               <div class="postPresenterContainer d-none d-flex justify-content-center align-items-center bg-dark">
                 <div v-if="status.pf_type === 'photo'" class="w-100">
                   <photo-presenter :status="status" v-on:lightbox="lightbox"></photo-presenter>
@@ -291,16 +301,24 @@
                   <div class="share-count font-weight-bold mt-2 rounded border" v-if="status.visibility == 'public'" style="cursor:pointer;" v-on:click="sharesModal">{{status.reblogs_count || 0}}</div>
                 </div>
               </div>
-              <!-- <div class="reaction-counts font-weight-bold mb-0">
-                  <span class="like-count">{{status.favourites_count || 0}}</span> likes
-                <span v-if="status.visibility == 'public'" class="float-right" style="cursor:pointer;" v-on:click="sharesModal">
-                  <span class="share-count pl-4">{{status.reblogs_count || 0}}</span> shares
-                </span>
-              </div> -->
-              <div class="media align-items-center mt-3">
+              <div v-if="status.length && status.content_text.includes('#') || status.content_text.includes('https://') || status.content_text.includes('@') || status.content_text.length > 45" class="media align-items-center mt-3">
                 <div class="media-body">
-                  <h2 class="font-weight-bold">
-                    {{status.content.length > 100 ? status.content.slice(0,100) : 'Untitled Post'}}
+                  <p class="lead mr-2" v-html="status.content">
+                  </p>
+                  <p class="lead mb-0">
+                    by <a :href="statusProfileUrl">{{statusUsername}}</a>
+                    <span v-if="relationship && profile && user && !relationship.following && profile.id != user.id">
+                      <span class="px-1 text-lighter">•</span> 
+                      <a class="font-weight-bold small" href="#">Follow</a>
+                    </span>
+                  </p>
+                </div>
+                <a :href="statusProfileUrl" :title="statusUsername"><img :src="statusAvatar" class="rounded-circle border mr-3" alt="avatar" width="72px" height="72px"></a>
+              </div>
+              <div v-else class="media align-items-center mt-3">
+                <div class="media-body">
+                  <h2 class="font-weight-bold mr-2">
+                    {{status.content_text.length ? status.content_text : 'Untitled Post'}}
                   </h2>
                   <p class="lead mb-0">
                     by <a :href="statusProfileUrl">{{statusUsername}}</a>
@@ -308,7 +326,7 @@
                     <a class="font-weight-bold small" href="#">Follow</a> -->
                   </p>
                 </div>
-                <img :src="statusAvatar" class="rounded-circle border mr-3" alt="avatar" width="72px" height="72px">
+                <a :href="statusProfileUrl" :title="statusUsername"><img :src="statusAvatar" class="rounded-circle border mr-3" alt="avatar" width="72px" height="72px"></a>
               </div>
               <hr>
               <div>
@@ -320,8 +338,7 @@
                     <i class="far fa-clock text-lighter mr-3"></i> {{timeAgo(status.created_at)}} ago
                   </span>
                 </p>
-                <!-- <div v-if="status.content.length > 100" class="lead" v-html="status.content"></div> -->
-                <!-- <div class="pt-4">
+                <!-- <div class="">
                   <p class="lead">
                     <span class="mr-3"><i class="fas fa-camera text-lighter"></i></span>
                     <span>Nikon D850</span>
@@ -343,57 +360,64 @@
               </div>
             </div>
             <div class="col-12 col-md-4 pt-4 pl-md-3">
-                <p class="lead font-weight-bold">Comments</p>
-                <div v-if="user && user.length" class="moment-comments">
-                  <div class="form-group">
-                    <textarea class="form-control" rows="3" placeholder="Add a comment ..." v-model="replyText"></textarea>
-                    <p style="padding-top:4px;">
-                      <span class="small text-lighter font-weight-bold">
-                        {{replyText.length}}/{{config.uploader.max_caption_length}}
+              <p class="lead font-weight-bold">Comments</p>
+              <div v-if="user != false" class="moment-comments">
+                <div class="form-group">
+                  <textarea class="form-control" rows="3" placeholder="Add a comment ..." v-model="replyText"></textarea>
+                  <p class="d-flex justify-content-between align-items-center mt-3">
+                    <span class="small text-lighter font-weight-bold">
+                      {{replyText.length}}/{{config.uploader.max_caption_length}}
+                    </span>
+                    <span v-if="replyText.length > 2">
+                      <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" @click="!!replySensitive" v-model="replySensitive" id="sensitiveReply">
+                        <label class="custom-control-label small font-weight-bold text-muted" style="padding-top: 3px" for="sensitiveReply">Add Content Warning</label>
+                      </div>
+                    </span>
+                    <button class="btn btn-sm font-weight-bold btn-outline-primary py-1" 
+                    v-if="replyText.length > 2" @click="postReply">Post</button>
+                  </p>
+                </div>
+              </div>
+              <div class="comment mt-4" style="max-height: 500px; overflow-y: auto;">
+                <div v-for="(reply, index) in results" :key="'tl' + reply.id + '_' + index" class="media mb-3 mt-2">
+                  <a :href="reply.account.url" :title="reply.account.username"><img :src="reply.account.avatar" class="rounded-circle border mr-3" alt="avatar" width="32px" height="32px"></a>
+                  <div class="media-body">
+                    <div class="d-flex justify-content-between">
+                      <span>
+                        <a class="font-weight-bold text-dark" :href="reply.account.url">{{reply.account.username}}</a>
                       </span>
-                      <button 
-                      :class="[replyText.length > 1 ? 'btn btn-sm font-weight-bold float-right btn-outline-dark ':'btn btn-sm font-weight-bold float-right btn-outline-lighter']" 
-                      :disabled="replyText.length == 0 ? 'disabled':''" 
-                      @click="postReply"
-                      >Post</button>
+                      <span class="text-lighter">
+                        <span v-if="reply.favourited" class="cursor-pointer mr-2" @click="likeReply(reply)">
+                          <i class="fas fa-heart text-danger"></i>
+                        </span>
+                        <span v-else class="cursor-pointer mr-2" @click="likeReply(reply)">
+                          <i class="far fa-heart"></i>
+                        </span>
+                        <span class="">
+                          <post-menu :status="reply" :profile="user" :size="'sm'" :modal="'true'" class="d-inline-block px-2" v-on:deletePost="deleteComment(reply.id, index)"></post-menu>
+                        </span>
+                      </span>
+                    </div>
+                    <div v-if="reply.sensitive == true">
+                      <span class="py-3">
+                        <span class="text-break">
+                          <span class="font-italic text-muted">This comment may contain sensitive material</span>
+                          <span class="badge badge-primary cursor-pointer ml-2 py-1" @click="reply.sensitive = false;">Show</span>
+                        </span>
+                      </span>
+                    </div>
+                    <div v-else class="read-more" style="overflow-y: hidden;">
+                      <p v-html="reply.content" class="mb-0">loading ...</p>
+                    </div>
+                    <p>
+                      <span class="small">
+                        <a class="text-lighter text-decoration-none" :href="reply.url">{{timeAgo(reply.created_at)}}</a>
+                      </span>
                     </p>
                   </div>
-                  <hr>
-                </div>
-                <div class="comment mt-3" style="max-height: 500px; overflow-y: auto;">
-                  <div v-for="(reply, index) in results" :key="'tl' + reply.id + '_' + index" class="media mb-3">
-                    <img :src="reply.account.avatar" class="rounded-circle border mr-3" alt="avatar" width="32px" height="32px">
-                    <div class="media-body">
-                      <div class="d-flex justify-content-between">
-                        <span class="font-weight-bold">{{reply.account.username}}</span>
-                        <span class="small">
-                          <a class="text-lighter text-decoration-none" :href="reply.url">{{timeAgo(reply.created_at)}}</a>
-                        </span>
-                      </div>
-                      <p v-html="reply.content"></p>
-                    </div>
-                  </div> 
-                  <!-- <div class="media mb-3">
-                    <img :src="statusAvatar" class="rounded-circle border mr-3" alt="avatar" width="32px" height="32px">
-                    <div class="media-body">
-                      <div class="d-flex justify-content-between">
-                        <span class="font-weight-bold">mona</span>
-                        <span class="text-lighter small">2h ago</span>
-                      </div>
-                      <p>Stunning my friend!</p>
-                    </div>
-                  </div>  
-                  <div class="media mb-3">
-                    <img :src="statusAvatar" class="rounded-circle border mr-3" alt="avatar" width="32px" height="32px">
-                    <div class="media-body">
-                      <div class="d-flex justify-content-between">
-                        <span class="font-weight-bold">Andre</span>
-                        <span class="text-lighter small">3h ago</span>
-                      </div>
-                      <p>Wow</p>
-                    </div>
-                  </div>   -->
-                </div>
+                </div> 
+              </div>
             </div>
           </div>
         </div>
@@ -405,9 +429,9 @@
     hide-footer
     centered
     title="Likes"
-    body-class="list-group-flush p-0">
+    body-class="list-group-flush py-3 px-0">
     <div class="list-group">
-      <div class="list-group-item border-0" v-for="(user, index) in likes" :key="'modal_likes_'+index">
+      <div class="list-group-item border-0 py-1" v-for="(user, index) in likes" :key="'modal_likes_'+index">
         <div class="media">
           <a :href="user.url">
             <img class="mr-3 rounded-circle box-shadow" :src="user.avatar" :alt="user.username + '’s avatar'" width="30px">
@@ -418,9 +442,11 @@
                 {{user.username}}
               </a>
             </p>
-            <p class="text-muted mb-0" style="font-size: 14px">
-                {{user.display_name}}
-              </a>
+            <p v-if="!user.local" class="text-muted mb-0 text-truncate mr-3" style="font-size: 14px" :title="user.acct" data-toggle="dropdown" data-placement="bottom">
+              <span class="font-weight-bold">{{user.acct.split('@')[0]}}</span><span class="text-lighter">&commat;{{user.acct.split('@')[1]}}</span>
+            </p>
+            <p v-else class="text-muted mb-0 text-truncate" style="font-size: 14px">
+              {{user.display_name}}
             </p>
           </div>
         </div>
@@ -465,9 +491,8 @@
       </infinite-loading>
     </div>
   </b-modal>
-  <b-modal
+  <b-modal ref="lightboxModal"
     id="lightbox"
-    ref="lightboxModal"
     :hide-header="true"
     :hide-footer="true"
     centered
@@ -478,7 +503,7 @@
       <img :src="lightboxMedia.url" :class="lightboxMedia.filter_class + ' img-fluid'" style="min-height: 100%; min-width: 100%">
     </div>
   </b-modal>
- <b-modal ref="embedModal"
+  <b-modal ref="embedModal"
     id="ctx-embed-modal"
     hide-header
     hide-footer
@@ -487,7 +512,29 @@
     size="md"
     body-class="p-2 rounded">
     <div>
-      <textarea class="form-control disabled" rows="1" style="border: 1px solid #efefef; font-size: 14px; line-height: 12px; height: 37px; margin: 0 0 7px; resize: none; white-space: nowrap;" v-model="ctxEmbedPayload"></textarea>
+      <div class="form-group">
+        <textarea class="form-control disabled text-monospace" rows="8" style="overflow-y:hidden;border: 1px solid #efefef; font-size: 12px; line-height: 18px; margin: 0 0 7px;resize:none;" v-model="ctxEmbedPayload" disabled=""></textarea>
+      </div>
+      <div class="form-group pl-2 d-flex justify-content-center">
+        <div class="form-check mr-3">
+          <input class="form-check-input" type="checkbox" v-model="ctxEmbedShowCaption" :disabled="ctxEmbedCompactMode == true">
+          <label class="form-check-label font-weight-light">
+            Show Caption
+          </label>
+        </div>
+        <div class="form-check mr-3">
+          <input class="form-check-input" type="checkbox" v-model="ctxEmbedShowLikes" :disabled="ctxEmbedCompactMode == true">
+          <label class="form-check-label font-weight-light">
+            Show Likes
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" v-model="ctxEmbedCompactMode">
+          <label class="form-check-label font-weight-light">
+            Compact Mode
+          </label>
+        </div>
+      </div>
       <hr>
       <button :class="copiedEmbed ? 'btn btn-primary btn-block btn-sm py-1 font-weight-bold disabed': 'btn btn-primary btn-block btn-sm py-1 font-weight-bold'" @click="ctxCopyEmbed" :disabled="copiedEmbed">{{copiedEmbed ? 'Embed Code Copied!' : 'Copy Embed Code'}}</button>
       <p class="mb-0 px-2 small text-muted">By using this embed, you agree to our <a href="/site/terms">Terms of Use</a></p>
@@ -542,8 +589,7 @@
     width: 24px;
   }
   .comment-thread {
-    margin: 4px 0 0 40px;
-    width: calc(100% - 40px);
+    margin-top: 1rem;
   }
   .emoji-reactions .nav-item {
     font-size: 1.2rem;
@@ -555,6 +601,12 @@
     height: 0px;
     background: transparent;
   }
+  @media (min-width: 1200px) {
+    .container {
+      max-width: 1100px;
+    }
+  }
+
 </style>
 <style type="text/css" scoped>
   .momentui .bg-dark {
@@ -601,6 +653,7 @@ export default {
             sharesPage: 1,
             lightboxMedia: false,
             replyText: '',
+            replySensitive: false,
             relationship: {},
             results: [],
             pagination: {},
@@ -619,10 +672,37 @@ export default {
             showCaption: true,
             ctxEmbedPayload: false,
             copiedEmbed: false,
-            layout: this.profileLayout
+            ctxEmbedShowCaption: true,
+            ctxEmbedShowLikes: false,
+            ctxEmbedCompactMode: false,
+            layout: this.profileLayout,
+            canEdit: false
           }
     },
-
+    watch: {
+      ctxEmbedShowCaption: function (n,o) {
+        if(n == true) {
+          this.ctxEmbedCompactMode = false;
+        }
+        let mode = this.ctxEmbedCompactMode ? 'compact' : 'full';
+        this.ctxEmbedPayload = window.App.util.embed.post(this.status.url, this.ctxEmbedShowCaption, this.ctxEmbedShowLikes, mode);
+      },
+      ctxEmbedShowLikes: function (n,o) {
+        if(n == true) {
+          this.ctxEmbedCompactMode = false;
+        }
+        let mode = this.ctxEmbedCompactMode ? 'compact' : 'full';
+        this.ctxEmbedPayload = window.App.util.embed.post(this.status.url, this.ctxEmbedShowCaption, this.ctxEmbedShowLikes, mode);
+      },
+      ctxEmbedCompactMode: function (n,o) {
+        if(n == true) {
+          this.ctxEmbedShowCaption = false;
+          this.ctxEmbedShowLikes = false;
+        }
+        let mode = this.ctxEmbedCompactMode ? 'compact' : 'full';
+        this.ctxEmbedPayload = window.App.util.embed.post(this.status.url, this.ctxEmbedShowCaption, this.ctxEmbedShowLikes, mode);
+      }
+    },
     beforeMount() {
       let u = new URLSearchParams(window.location.search);
       let forceMetro = localStorage.getItem('pf_metro_ui.exp.forceMetro') == 'true';
@@ -645,6 +725,7 @@ export default {
 
     updated() {
       $('.carousel').carousel();
+      // $('[data-toggle="tooltip"]').tooltip();
       if(this.showReadMore == true) {
         window.pixelfed.readmore();
       }
@@ -693,8 +774,14 @@ export default {
                   self.showComments = true;
                   this.fetchComments();
                 }
+                if(this.ownerOrAdmin()) {
+                  let od = new Date(this.status.created_at).getTime() + (1 * 24 * 60 * 60 * 1000);
+                  let now = new Date().getTime();
+                  if(od > now) {
+                    this.canEdit = true;
+                  }
+                }
                 this.loaded = true;
-                $('head title').text(this.status.account.username + ' posted a photo: ' + this.status.favourites_count + ' likes');
             }).catch(error => {
               swal('Oops!', 'An error occured, please try refreshing the page.', 'error');
             });
@@ -900,7 +987,8 @@ export default {
         }
         let data = {
           item: this.replyingToId,
-          comment: this.replyText
+          comment: this.replyText,
+          sensitive: this.replySensitive
         }
         
         this.replyText = '';
@@ -959,7 +1047,6 @@ export default {
           this.replyToIndex = index;
           this.replyingToId = e.id;
           this.reply_to_profile_id = e.account.id;
-          this.replyText = '@' + e.account.username + ' ';
           $('textarea[name="comment"]').focus();
       },
 
@@ -1009,6 +1096,7 @@ export default {
             $('.load-more-link').addClass('d-none');
             return;
           }
+          $('.load-more-link').addClass('d-none');
           $('.postCommentsLoader').removeClass('d-none');
           let next = this.pagination.links.next;
           axios.get(next)
@@ -1020,6 +1108,7 @@ export default {
                   this.results.unshift(res[i]);
                 }
                 this.pagination = response.data.meta.pagination;
+                $('.load-more-link').removeClass('d-none');
             });
       },
 
@@ -1049,29 +1138,7 @@ export default {
       },
 
       timeAgo(ts) {
-        let date = Date.parse(ts);
-        let seconds = Math.floor((new Date() - date) / 1000);
-        let interval = Math.floor(seconds / 31536000);
-        if (interval >= 1) {
-          return interval + "y";
-        }
-        interval = Math.floor(seconds / 604800);
-        if (interval >= 1) {
-          return interval + "w";
-        }
-        interval = Math.floor(seconds / 86400);
-        if (interval >= 1) {
-          return interval + "d";
-        }
-        interval = Math.floor(seconds / 3600);
-        if (interval >= 1) {
-          return interval + "h";
-        }
-        interval = Math.floor(seconds / 60);
-        if (interval >= 1) {
-          return interval + "m";
-        }
-        return Math.floor(seconds) + "s";
+        return App.util.format.timeAgo(ts);
       },
 
       emojiReaction() {
@@ -1184,7 +1251,8 @@ export default {
       },
 
       showEmbedPostModal() {
-        this.ctxEmbedPayload = window.App.util.embed.post(this.status.url)
+        let mode = this.ctxEmbedCompactMode ? 'compact' : 'full';
+        this.ctxEmbedPayload = window.App.util.embed.post(this.status.url, this.ctxEmbedShowCaption, this.ctxEmbedShowLikes, mode);
         this.$refs.embedModal.show();
       },
 
@@ -1192,6 +1260,17 @@ export default {
         navigator.clipboard.writeText(this.ctxEmbedPayload);
         this.$refs.embedModal.hide();
       },
+
+      permalinkUrl(reply, showOrigin = false) {
+        let profile = reply.account;
+        if(profile.local == true) {
+          return reply.url;
+        } else {
+          return showOrigin ? 
+            reply.url :
+            '/i/web/post/_/' + profile.id + '/' + reply.id; 
+        }
+      }
 
     },
 }

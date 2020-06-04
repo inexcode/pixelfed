@@ -10,6 +10,7 @@ use App\Util\Media\Filter;
 use Laravel\Passport\Passport;
 use Auth, Cache, DB, URL;
 use App\{
+    Bookmark,
     Follower,
     FollowRequest,
     Like,
@@ -70,11 +71,13 @@ class ApiV1Controller extends Controller
 			'website' 			=> 'nullable'
 		]);
 
+        $uris = implode(',', explode('\n', $request->redirect_uris));
+
         $client = Passport::client()->forceFill([
             'user_id' => null,
             'name' => e($request->client_name),
             'secret' => Str::random(40),
-            'redirect' => $request->redirect_uris,
+            'redirect' => $uris,
             'personal_access_client' => false,
             'password_client' => false,
             'revoked' => false,
@@ -828,7 +831,7 @@ class ApiV1Controller extends Controller
             ->first();
 
         if($like) {
-            $like->delete();
+            $like->forceDelete();
             $status->likes_count = $status->likes()->count();
             $status->save();
         }
@@ -1226,7 +1229,9 @@ class ApiV1Controller extends Controller
         $min = $request->input('min_id');
         $max = $request->input('max_id');
 
-        abort_if(!$since && !$min && !$max, 400);
+        if(!$since && !$min && !$max) {
+            $min = 1;
+        }
 
         $dir = $since ? '>' : ($min ? '>=' : '<');
         $id = $since ?? $min ?? $max;
@@ -1238,6 +1243,9 @@ class ApiV1Controller extends Controller
             ->limit($limit)
             ->get();
 
+        $minId = $notifications->min('id');
+        $maxId = $notifications->max('id');
+
         $resource = new Fractal\Resource\Collection(
             $notifications,
             new NotificationTransformer()
@@ -1247,7 +1255,33 @@ class ApiV1Controller extends Controller
             ->createData($resource)
             ->toArray();
 
-        return response()->json($res);
+        $baseUrl = config('app.url') . '/api/v1/notifications?';
+
+        if($minId == $maxId) {
+            $minId = null;
+        }
+
+        if($maxId) {
+            $link = '<'.$baseUrl.'max_id='.$maxId.'>; rel="next"';
+        }
+
+        if($minId) {
+            $link = '<'.$baseUrl.'min_id='.$minId.'>; rel="prev"';
+        }
+
+        if($maxId && $minId) {
+            $link = '<'.$baseUrl.'max_id='.$maxId.'>; rel="next",<'.$baseUrl.'min_id='.$minId.'>; rel="prev"';
+        }
+
+        $res = response()->json($res);
+
+        if(isset($link)) {
+            $res->withHeaders([
+                'Link' => $link,
+            ]);
+        }
+
+        return $res;
     }
 
     /**
@@ -1655,8 +1689,8 @@ class ApiV1Controller extends Controller
 
             $status = new Status;
             $status->caption = strip_tags($request->input('status'));
-            $status->scope = $request->input('visibility');
-            $status->visibility = $request->input('visibility');
+            $status->scope = $request->input('visibility', 'public');
+            $status->visibility = $request->input('visibility', 'public');
             $status->profile_id = $user->profile_id;
             $status->is_nsfw = $user->profile->cw == true ? true : $request->input('sensitive', false);
             $status->in_reply_to_id = $parent->id;
@@ -1690,8 +1724,8 @@ class ApiV1Controller extends Controller
                 abort(500, 'Invalid media ids');
             }
 
-            $status->scope = $request->input('visibility');
-            $status->visibility = $request->input('visibility');
+            $status->scope = $request->input('visibility', 'public');
+            $status->visibility = $request->input('visibility', 'public');
             $status->type = StatusController::mimeTypeCheck($mimes);
             $status->save();
         }
@@ -1756,7 +1790,9 @@ class ApiV1Controller extends Controller
         $share = Status::firstOrCreate([
             'profile_id' => $user->profile_id,
             'reblog_of_id' => $status->id,
-            'in_reply_to_profile_id' => $status->profile_id
+            'in_reply_to_profile_id' => $status->profile_id,
+            'scope' => 'public',
+            'visibility' => 'public'
         ]);
 
         if($share->wasRecentlyCreated == true) {
@@ -1816,6 +1852,105 @@ class ApiV1Controller extends Controller
 
         // todo
         $res = [];
+        return response()->json($res);
+    }
+
+    /**
+     * GET /api/v1/bookmarks
+     *
+     *
+     *
+     * @return StatusTransformer
+     */
+    public function bookmarks(Request $request)
+    {
+        abort_if(!$request->user(), 403);
+
+        $this->validate($request, [
+            'limit' => 'nullable|integer|min:1|max:40',
+            'max_id' => 'nullable|integer|min:0',
+            'since_id' => 'nullable|integer|min:0',
+            'min_id' => 'nullable|integer|min:0'
+        ]);
+
+        $pid = $request->user()->profile_id;
+        $limit = $request->input('limit') ?? 20;
+        $max_id = $request->input('max_id');
+        $since_id = $request->input('since_id');
+        $min_id = $request->input('min_id');
+
+        $dir = $min_id ? '>' : '<';
+        $id = $min_id ?? $max_id;
+
+        if($id) {
+            $bookmarks = Bookmark::whereProfileId($pid)
+                ->where('status_id', $dir, $id)
+                ->limit($limit)
+                ->pluck('status_id');
+        } else {
+            $bookmarks = Bookmark::whereProfileId($pid)
+                ->latest()
+                ->limit($limit)
+                ->pluck('status_id');
+        }
+
+        $res = [];
+        foreach($bookmarks as $id) {
+            $res[] = \App\Services\StatusService::get($id);
+        }
+        return response()->json($res, 200, [], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * POST /api/v1/statuses/{id}/bookmark
+     *
+     *
+     *
+     * @return StatusTransformer
+     */
+    public function bookmarkStatus(Request $request, $id)
+    {
+        abort_if(!$request->user(), 403);
+
+        $status = Status::whereNull('uri')
+            ->whereScope('public')
+            ->findOrFail($id);
+
+        Bookmark::firstOrCreate([
+            'status_id' => $status->id,
+            'profile_id' => $request->user()->profile_id
+        ]);
+        $resource = new Fractal\Resource\Item($status, new StatusTransformer());
+        $res = $this->fractal->createData($resource)->toArray();
+        return response()->json($res);
+    }
+
+    /**
+     * POST /api/v1/statuses/{id}/unbookmark
+     *
+     *
+     *
+     * @return StatusTransformer
+     */
+    public function unbookmarkStatus(Request $request, $id)
+    {
+        abort_if(!$request->user(), 403);
+
+        $status = Status::whereNull('uri')
+            ->whereScope('public')
+            ->findOrFail($id);
+
+        Bookmark::firstOrCreate([
+            'status_id' => $status->id,
+            'profile_id' => $request->user()->profile_id
+        ]);
+        $bookmark = Bookmark::whereStatusId($status->id)
+            ->whereProfileId($request->user()->profile_id)
+            ->firstOrFail();
+        $bookmark->delete();
+
+        $resource = new Fractal\Resource\Item($status, new StatusTransformer());
+        $res = $this->fractal->createData($resource)->toArray();
         return response()->json($res);
     }
 

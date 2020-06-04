@@ -181,9 +181,11 @@ class Helpers {
 
 	public static function zttpUserAgent()
 	{
+		$version = config('pixelfed.version');
+		$url = config('app.url');
 		return [
 			'Accept'     => 'application/activity+json',
-			'User-Agent' => 'PixelfedBot - https://pixelfed.org',
+			'User-Agent' => "(Pixelfed/{$version}; +{$url})",
 		];
 	}
 
@@ -236,10 +238,6 @@ class Helpers {
 				$activity = ['object' => $res];
 			}
 
-			if(isset($res['content']) == false) {
-				abort(400, 'Invalid object');
-			}
-
 			$scope = 'private';
 			
 			$cw = isset($res['sensitive']) ? (bool) $res['sensitive'] : false;
@@ -290,7 +288,7 @@ class Helpers {
 			if(!self::validateUrl($res['id']) ||
 			   !self::validateUrl($activity['object']['attributedTo'])
 			) {
-				abort(400, 'Invalid object url');
+				return;
 			}
 
 			$idDomain = parse_url($res['id'], PHP_URL_HOST);
@@ -302,7 +300,7 @@ class Helpers {
 				$actorDomain !== $urlDomain || 
 				$idDomain !== $actorDomain
 			) {
-				abort(400, 'Invalid object');
+				return;
 			}
 
 			$profile = self::profileFirstOrNew($activity['object']['attributedTo']);
@@ -327,6 +325,8 @@ class Helpers {
 				$status->is_nsfw = $cw;
 				$status->scope = $scope;
 				$status->visibility = $scope;
+				$status->cw_summary = $cw == true && isset($res['summary']) ?
+					Purify::clean(strip_tags($res['summary'])) : null;
 				$status->save();
 				if($reply_to == null) {
 					self::importNoteAttachment($res, $status);
@@ -400,11 +400,15 @@ class Helpers {
 			return;
 		}
 		$domain = parse_url($res['id'], PHP_URL_HOST);
-		$username = (string) Purify::clean($res['preferredUsername']);
+		if(!isset($res['preferredUsername']) && !isset($res['nickname'])) {
+			return;
+		}
+		$username = (string) Purify::clean($res['preferredUsername'] ?? $res['nickname']);
 		if(empty($username)) {
 			return;
 		}
-		$remoteUsername = "@{$username}@{$domain}";
+		$remoteUsername = $username;
+		$webfinger = "@{$username}@{$domain}";
 
 		abort_if(!self::validateUrl($res['inbox']), 400);
 		abort_if(!self::validateUrl($res['id']), 400);
@@ -413,7 +417,7 @@ class Helpers {
 		if(!$profile) {
 			$profile = new Profile();
 			$profile->domain = strtolower($domain);
-			$profile->username = strtolower(Purify::clean($remoteUsername));
+			$profile->username = strtolower(Purify::clean($webfinger));
 			$profile->name = isset($res['name']) ? Purify::clean($res['name']) : 'user';
 			$profile->bio = isset($res['summary']) ? Purify::clean($res['summary']) : null;
 			$profile->sharedInbox = isset($res['endpoints']) && isset($res['endpoints']['sharedInbox']) ? $res['endpoints']['sharedInbox'] : null;
@@ -422,6 +426,8 @@ class Helpers {
 			$profile->remote_url = strtolower($res['id']);
 			$profile->public_key = $res['publicKey']['publicKeyPem'];
 			$profile->key_id = $res['publicKey']['id'];
+			$profile->webfinger = strtolower(Purify::clean($webfinger));
+			$profile->last_fetched_at = now();
 			$profile->save();
 			if($runJobs == true) {
 				// RemoteFollowImportRecent::dispatch($res, $profile);

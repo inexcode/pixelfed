@@ -1,6 +1,11 @@
 <template>
 <div class="container" style="">
 	<div v-if="layout === 'feed'" class="row">
+		<div v-if="morePostsAvailable == true" class="col-12 mt-5 pt-3 mb-3 fixed-top">
+			<p class="text-center">
+				<button class="btn btn-dark px-4 rounded-pill font-weight-bold shadow" @click="syncNewPosts">Load New Posts</button>
+			</p>
+		</div>
 		<div :class="[modes.distractionFree ? 'col-md-8 col-lg-8 offset-md-2 px-0 mb-sm-3 timeline order-2 order-md-1':'col-md-8 col-lg-8 px-0 mb-sm-3 timeline order-2 order-md-1']">
 			<div v-if="config.features.stories">
 				<story-component v-if="config.features.stories"></story-component>
@@ -74,7 +79,7 @@
 					</div>
 
 					<div class="card mb-sm-4 status-card card-md-rounded-0 shadow-none border">
-						<div v-if="!modes.distractionFree" class="card-header d-inline-flex align-items-center bg-white">
+						<div v-if="!modes.distractionFree && status" class="card-header d-inline-flex align-items-center bg-white">
 							<img v-bind:src="status.account.avatar" width="38px" height="38px" class="cursor-pointer" style="border-radius: 38px;" @click="profileUrl(status)" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
 							<!-- <div v-if="hasStory" class="has-story has-story-sm cursor-pointer shadow-sm" @click="profileUrl(status)">
 								<img class="rounded-circle box-shadow" :src="status.account.avatar" width="32px" height="32px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
@@ -180,18 +185,18 @@
 							</div>
 						</div>
 
-						<div v-if="status.id == replyId && !status.comments_disabled" class="card-footer bg-white px-2 py-0">
+						<!--<div v-if="status.id == replyId && !status.comments_disabled" class="card-footer bg-white px-2 py-0">
 							<ul class="nav align-items-center emoji-reactions" style="overflow-x: scroll;flex-wrap: unset;">
 								<li class="nav-item" v-on:click="emojiReaction(status)" v-for="e in emoji">{{e}}</li>
 							</ul>
-						</div>
+						</div>-->
 
-						<div v-if="status.id == replyId && !status.comments_disabled" class="card-footer bg-white sticky-md-bottom p-0">
+						<!--<div v-if="status.id == replyId && !status.comments_disabled" class="card-footer bg-white sticky-md-bottom p-0">
 							<form class="border-0 rounded-0 align-middle" method="post" action="/i/comment" :data-id="status.id" data-truncate="false">
 								<textarea class="form-control border-0 rounded-0" name="comment" placeholder="Add a comment…" autocomplete="off" autocorrect="off" style="height:56px;line-height: 18px;max-height:80px;resize: none; padding-right:4.2rem;" v-model="replyText"></textarea>
 								<input type="button" value="Post" class="d-inline-block btn btn-link font-weight-bold reply-btn text-decoration-none" v-on:click.prevent="commentSubmit(status, $event)" :disabled="replyText.length == 0" />
 							</form>
-						</div>
+						</div>-->
 					</div>
 				</div>
 				<div v-if="!loading && feed.length">
@@ -399,55 +404,116 @@
 	body-class="list-group-flush p-0 rounded">
 	<div class="list-group text-center">
 		<div class="list-group-item rounded cursor-pointer" @click="moderatePost(ctxMenuStatus, 'unlist')">Unlist from Timelines</div>
-		<div class="list-group-item rounded cursor-pointer" @click="">Add Content Warning</div>
+		<div v-if="ctxMenuStatus.sensitive" class="list-group-item rounded cursor-pointer" @click="moderatePost(ctxMenuStatus, 'remcw')">Remove Content Warning</div>
+		<div v-else class="list-group-item rounded cursor-pointer" @click="moderatePost(ctxMenuStatus, 'addcw')">Add Content Warning</div>
 		<div class="list-group-item rounded cursor-pointer text-lighter" @click="ctxModMenuClose()">Cancel</div>
 	</div>
- </b-modal>
- <b-modal ref="ctxShareModal"
-    id="ctx-share-modal"
-    title="Share"
-    hide-footer
-    centered
-    rounded
-    size="sm"
-    body-class="list-group-flush p-0 rounded text-center">
-      <div class="list-group-item rounded cursor-pointer border-top-0">Email</div>
-      <div class="list-group-item rounded cursor-pointer">Facebook</div>
-      <div class="list-group-item rounded cursor-pointer">Mastodon</div>
-      <div class="list-group-item rounded cursor-pointer">Pinterest</div>
-      <div class="list-group-item rounded cursor-pointer">Pixelfed</div>
-      <div class="list-group-item rounded cursor-pointer">Twitter</div>
-      <div class="list-group-item rounded cursor-pointer">VK</div>
-      <div class="list-group-item rounded cursor-pointer text-lighter" @click="closeCtxShareMenu()">Cancel</div>
- </b-modal>
- <b-modal ref="ctxEmbedModal"
-    id="ctx-embed-modal"
-    hide-header
-    hide-footer
-    centered
-    rounded
-    size="md"
-    body-class="p-2 rounded">
+</b-modal>
+<b-modal ref="ctxShareModal"
+	id="ctx-share-modal"
+	title="Share"
+	hide-footer
+	centered
+	rounded
+	size="sm"
+	body-class="list-group-flush p-0 rounded text-center">
+		<div class="list-group-item rounded cursor-pointer border-top-0">Email</div>
+		<div class="list-group-item rounded cursor-pointer">Facebook</div>
+		<div class="list-group-item rounded cursor-pointer">Mastodon</div>
+		<div class="list-group-item rounded cursor-pointer">Pinterest</div>
+		<div class="list-group-item rounded cursor-pointer">Pixelfed</div>
+		<div class="list-group-item rounded cursor-pointer">Twitter</div>
+		<div class="list-group-item rounded cursor-pointer">VK</div>
+		<div class="list-group-item rounded cursor-pointer text-lighter" @click="closeCtxShareMenu()">Cancel</div>
+</b-modal>
+<b-modal ref="ctxEmbedModal"
+	id="ctx-embed-modal"
+	hide-header
+	hide-footer
+	centered
+	rounded
+	size="md"
+	body-class="p-2 rounded">
 	<div>
-		<textarea class="form-control disabled" rows="1" style="border: 1px solid #efefef; font-size: 14px; line-height: 12px; height: 37px; margin: 0 0 7px; resize: none; white-space: nowrap;" v-model="ctxEmbedPayload"></textarea>
+		<div class="form-group">
+			<textarea class="form-control disabled text-monospace" rows="8" style="overflow-y:hidden;border: 1px solid #efefef; font-size: 12px; line-height: 18px; margin: 0 0 7px;resize:none;" v-model="ctxEmbedPayload" disabled=""></textarea>
+		</div>
+		<div class="form-group pl-2 d-flex justify-content-center">
+			<div class="form-check mr-3">
+				<input class="form-check-input" type="checkbox" v-model="ctxEmbedShowCaption" :disabled="ctxEmbedCompactMode == true">
+				<label class="form-check-label font-weight-light">
+					Show Caption
+				</label>
+			</div>
+			<div class="form-check mr-3">
+				<input class="form-check-input" type="checkbox" v-model="ctxEmbedShowLikes" :disabled="ctxEmbedCompactMode == true">
+				<label class="form-check-label font-weight-light">
+					Show Likes
+				</label>
+			</div>
+			<div class="form-check">
+				<input class="form-check-input" type="checkbox" v-model="ctxEmbedCompactMode">
+				<label class="form-check-label font-weight-light">
+					Compact Mode
+				</label>
+			</div>
+		</div>
 		<hr>
 		<button :class="copiedEmbed ? 'btn btn-primary btn-block btn-sm py-1 font-weight-bold disabed': 'btn btn-primary btn-block btn-sm py-1 font-weight-bold'" @click="ctxCopyEmbed" :disabled="copiedEmbed">{{copiedEmbed ? 'Embed Code Copied!' : 'Copy Embed Code'}}</button>
 		<p class="mb-0 px-2 small text-muted">By using this embed, you agree to our <a href="/site/terms">Terms of Use</a></p>
 	</div>
-  </b-modal>
-  <b-modal
-  	id="lightbox"
-  	ref="lightboxModal"
-  	hide-header
-  	hide-footer
-  	centered
-  	size="lg"
-  	body-class="p-0"
-  	>
-  	<div v-if="lightboxMedia" :class="lightboxMedia.filter_class" class="w-100 h-100">
-  		<img :src="lightboxMedia.url" style="max-height: 100%; max-width: 100%">
-  	</div>
-  </b-modal>
+</b-modal>
+<b-modal
+	id="lightbox"
+	ref="lightboxModal"
+	hide-header
+	hide-footer
+	centered
+	size="lg"
+	body-class="p-0"
+	>
+	<div v-if="lightboxMedia" :class="lightboxMedia.filter_class" class="w-100 h-100">
+		<img :src="lightboxMedia.url" style="max-height: 100%; max-width: 100%">
+	</div>
+ </b-modal>
+<b-modal ref="replyModal"
+	id="ctx-reply-modal"
+	hide-footer
+	centered
+	rounded
+	:title-html="replyStatus.account ? 'Reply to <span class=text-dark>' + replyStatus.account.username + '</span>' : ''"
+	title-tag="p"
+	title-class="font-weight-bold text-muted"
+	size="md"
+	body-class="p-2 rounded">
+	<div>
+		<textarea class="form-control" rows="4" style="border: none; font-size: 18px; resize: none; white-space: nowrap;outline: none;" placeholder="Reply here ..." v-model="replyText">
+		</textarea>
+
+		<div class="border-top border-bottom my-2">
+			<ul class="nav align-items-center emoji-reactions" style="overflow-x: scroll;flex-wrap: unset;">
+				<li class="nav-item" v-on:click="emojiReaction(status)" v-for="e in emoji">{{e}}</li>
+			</ul>
+		</div>
+		<div class="d-flex justify-content-between align-items-center">
+			<div>
+				<span class="pl-2 small text-muted font-weight-bold text-monospace">
+					{{replyText.length}}/600
+				</span>
+			</div>
+			<div class="d-flex align-items-center">
+				<!-- <select class="custom-select custom-select-sm my-0 mr-2">
+					<option value="public" selected="">Public</option>
+					<option value="unlisted">Unlisted</option>
+					<option value="followers">Followers Only</option>
+				</select> -->
+				<button class="btn btn-primary btn-sm py-2 px-4 lead text-uppercase font-weight-bold" v-on:click.prevent="commentSubmit(status, $event)" :disabled="replyText.length == 0">
+				{{replySending == true ? 'POSTING' : 'POST'}}
+			</button>
+			</div>
+		</div>
+	</div>
+</b-modal>
 </div>
 </template>
 
@@ -513,6 +579,11 @@
 		padding: 3px;
 		background: #fff;
 	}
+	#ctx-reply-modal .form-control:focus {
+		border: none;
+		outline: 0;
+		box-shadow: none;
+	}
 </style>
 
 <script type="text/javascript">
@@ -558,9 +629,42 @@
 				copiedEmbed: false,
 				showTips: true,
 				userStory: false,
+				replySending: false,
+				ctxEmbedShowCaption: true,
+				ctxEmbedShowLikes: false,
+				ctxEmbedCompactMode: false,
+				morePostsAvailable: false,
+				mpCount: 0,
+				mpData: false,
+				mpInterval: 15000,
+				mpEnabled: false,
+				mpPoller: null
 			}
 		},
-
+		watch: {
+			ctxEmbedShowCaption: function (n,o) {
+				if(n == true) {
+					this.ctxEmbedCompactMode = false;
+				}
+				let mode = this.ctxEmbedCompactMode ? 'compact' : 'full';
+				this.ctxEmbedPayload = window.App.util.embed.post(this.ctxMenuStatus.url, this.ctxEmbedShowCaption, this.ctxEmbedShowLikes, mode);
+			},
+			ctxEmbedShowLikes: function (n,o) {
+				if(n == true) {
+					this.ctxEmbedCompactMode = false;
+				}
+				let mode = this.ctxEmbedCompactMode ? 'compact' : 'full';
+				this.ctxEmbedPayload = window.App.util.embed.post(this.ctxMenuStatus.url, this.ctxEmbedShowCaption, this.ctxEmbedShowLikes, mode);
+			},
+			ctxEmbedCompactMode: function (n,o) {
+				if(n == true) {
+					this.ctxEmbedShowCaption = false;
+					this.ctxEmbedShowLikes = false;
+				}
+				let mode = this.ctxEmbedCompactMode ? 'compact' : 'full';
+				this.ctxEmbedPayload = window.App.util.embed.post(this.ctxMenuStatus.url, this.ctxEmbedShowCaption, this.ctxEmbedShowLikes, mode);
+			}
+		},
 		beforeMount() {
 			this.fetchProfile();
 			this.fetchTimelineApi();
@@ -668,6 +772,7 @@
 						this.fetchHashtagPosts();
 					}
 					// this.fetchStories();
+					this.rtw();
 				}).catch(err => {
 					swal(
 						'Oops, something went wrong',
@@ -736,15 +841,20 @@
 			},
 
 			commentFocus(status, $event) {
-				if(this.replyId == status.id || status.comments_disabled) {
+				if(status.comments_disabled) {
 					return;
 				}
+
+				this.status = status;
 				this.replies = {};
 				this.replyStatus = {};
 				this.replyText = '';
 				this.replyId = status.id;
 				this.replyStatus = status;
+				this.$refs.replyModal.show();
 				this.fetchStatusComments(status, '');
+				return;
+
 			},
 
 			likeStatus(status) {
@@ -864,6 +974,7 @@
 			},
 
 			commentSubmit(status, $event) {
+				this.replySending = true;
 				let id = status.id;
 				let comment = this.replyText;
 				axios.post('/i/comment', {
@@ -871,15 +982,19 @@
 					comment: comment
 				}).then(res => {
 					this.replyText = '';
-					this.replies.push(res.data.entity);
+					this.replies.unshift(res.data.entity);
+					this.$refs.replyModal.hide();
 				});
+				this.replySending = false;
 			},
 
 			moderatePost(status, action, $event) {
 				let username = status.account.username;
+				let msg = '';
+				let self = this;
 				switch(action) {
-					case 'autocw':
-						let msg = 'Are you sure you want to enforce CW for ' + username + ' ?';
+					case 'addcw':
+						msg = 'Are you sure you want to add a content warning to this post?';
 						swal({
 							title: 'Confirm',
 							text: msg,
@@ -893,20 +1008,23 @@
 									item_id: status.id,
 									item_type: 'status'
 								}).then(res => {
-									swal('Success', 'Successfully enforced CW for ' + username, 'success');
+									swal('Success', 'Successfully added content warning', 'success');
+									status.sensitive = true;
+									self.ctxModMenuClose();
 								}).catch(err => {
 									swal(
 										'Error',
 										'Something went wrong, please try again later.',
 										'error'
 									);
+									self.ctxModMenuClose();
 								});
 							}
 						});
 					break;
 
-					case 'noautolink':
-						msg = 'Are you sure you want to disable auto linking for ' + username + ' ?';
+					case 'remcw':
+						msg = 'Are you sure you want to remove the content warning on this post?';
 						swal({
 							title: 'Confirm',
 							text: msg,
@@ -920,20 +1038,23 @@
 									item_id: status.id,
 									item_type: 'status'
 								}).then(res => {
-									swal('Success', 'Successfully disabled autolinking for ' + username, 'success');
+									swal('Success', 'Successfully added content warning', 'success');
+									status.sensitive = false;
+									self.ctxModMenuClose();
 								}).catch(err => {
 									swal(
 										'Error',
 										'Something went wrong, please try again later.',
 										'error'
 									);
+									self.ctxModMenuClose();
 								});
 							}
 						});
 					break;
 
-					case 'unlisted':
-						msg = 'Are you sure you want to unlist from timelines for ' + username + ' ?';
+					case 'unlist':
+						msg = 'Are you sure you want to unlist this post?';
 						swal({
 							title: 'Confirm',
 							text: msg,
@@ -947,62 +1068,13 @@
 									item_id: status.id,
 									item_type: 'status'
 								}).then(res => {
-									swal('Success', 'Successfully unlisted for ' + username, 'success');
+									this.feed = this.feed.filter(f => {
+										return f.id != status.id;
+									});
+									swal('Success', 'Successfully unlisted post', 'success');
+									self.ctxModMenuClose();
 								}).catch(err => {
-									swal(
-										'Error',
-										'Something went wrong, please try again later.',
-										'error'
-									);
-								});
-							}
-						});
-					break;
-
-					case 'disable':
-						msg = 'Are you sure you want to disable ' + username + '’s account ?';
-						swal({
-							title: 'Confirm',
-							text: msg,
-							icon: 'warning',
-							buttons: true,
-							dangerMode: true
-						}).then(res =>  {
-							if(res) {
-								axios.post('/api/v2/moderator/action', {
-									action: action,
-									item_id: status.id,
-									item_type: 'status'
-								}).then(res => {
-									swal('Success', 'Successfully disabled ' + username + '’s account', 'success');
-								}).catch(err => {
-									swal(
-										'Error',
-										'Something went wrong, please try again later.',
-										'error'
-									);
-								});
-							}
-						});
-					break;
-
-					case 'suspend':
-						msg = 'Are you sure you want to suspend ' + username + '’s account ?';
-						swal({
-							title: 'Confirm',
-							text: msg,
-							icon: 'warning',
-							buttons: true,
-							dangerMode: true
-						}).then(res =>  {
-							if(res) {
-								axios.post('/api/v2/moderator/action', {
-									action: action,
-									item_id: status.id,
-									item_type: 'status'
-								}).then(res => {
-									swal('Success', 'Successfully suspend ' + username + '’s account', 'success');
-								}).catch(err => {
+									self.ctxModMenuClose();
 									swal(
 										'Error',
 										'Something went wrong, please try again later.',
@@ -1337,6 +1409,9 @@
 
 			ctxCopyEmbed() {
 				navigator.clipboard.writeText(this.ctxEmbedPayload);
+				this.ctxEmbedShowCaption = true;
+				this.ctxEmbedShowLikes = false;
+				this.ctxEmbedCompactMode = false;
 				this.$refs.ctxEmbedModal.hide();
 			},
 
@@ -1359,22 +1434,19 @@
 			},
 
 			statusUrl(status) {
-				return status.url;
+				if(status.local == true) {
+					return status.url;
+				}
 
-				// if(status.local == true) {
-				// 	return status.url;
-				// }
-
-				// return '/i/web/post/_/' + status.account.id + '/' + status.id;
+				return '/i/web/post/_/' + status.account.id + '/' + status.id;
 			},
 
 			profileUrl(status) {
-				return status.account.url;
-				// if(status.local == true) {
-				// 	return status.account.url;
-				// }
+				if(status.local == true) {
+					return status.account.url;
+				}
 
-				// return '/i/web/profile/_/' + status.account.id;
+				return '/i/web/profile/_/' + status.account.id;
 			},
 
 			statusCardUsernameFormat(status) {
@@ -1428,7 +1500,66 @@
 				.then(res => {
 					this.userStory = res.data;
 				})
+			},
+
+			// real time watcher
+			rtw() {
+				this.mpPoller = setInterval(() => {
+					let apiUrl = false;
+					this.mpCount++;
+					if(this.mpCount > 10) {
+						this.mpInterval = 30000;
+					}
+					if(this.mpCount > 50) {
+						this.mpInterval = (5 * 60 * 1000);
+					}
+					switch(this.scope) {
+						case 'home':
+						apiUrl = '/api/pixelfed/v1/timelines/home';
+						break;
+
+						case 'local':
+						apiUrl = '/api/pixelfed/v1/timelines/public';
+						break;
+
+						case 'network':
+						apiUrl = '/api/pixelfed/v1/timelines/network';
+						break;
+					}
+					axios.get(apiUrl, {
+						params: {
+							max_id: 0,
+							limit: 20
+						}
+					}).then(res => {
+						let self = this;
+						let data = res.data.filter(d => {
+							return d.id > self.min_id
+						});
+						let ids = data.map(status => status.id);
+						let max = Math.max(...ids).toString();
+						let newer = max > this.min_id;
+						if(newer) {
+							this.morePostsAvailable = true;
+							this.mpData = data;
+						}
+					});
+				}, this.mpInterval);
+			},
+
+			syncNewPosts() {
+				let self = this;
+				let data = this.mpData;
+				let ids = data.map(s => s.id);
+				this.min_id = Math.max(...ids).toString();
+				this.max_id = Math.min(...ids).toString();
+				this.feed.unshift(...data);
+				this.morePostsAvailable = false;
+				this.mpData = null;
 			}
-		}
+		},
+		beforeDestroy () {
+			clearInterval(this.mpInterval);
+		},
 	}
 </script>
