@@ -938,7 +938,7 @@ class ApiV1Controller extends Controller
             'description' => 'Pixelfed - Photo sharing for everyone',
             'email' => config('instance.email'),
             'languages' => ['en'],
-            'max_toot_chars' => config('pixelfed.max_caption_length'),
+            'max_toot_chars' => (int) config('pixelfed.max_caption_length'),
             'registrations' => config('pixelfed.open_registration'),
             'stats' => [
                 'user_count' => 0,
@@ -951,11 +951,11 @@ class ApiV1Controller extends Controller
             'urls' => [],
             'version' => '2.7.2 (compatible; Pixelfed ' . config('pixelfed.version') . ')',
             'environment' => [
-                'max_photo_size' => config('pixelfed.max_photo_size'),
-                'max_avatar_size' => config('pixelfed.max_avatar_size'),
-                'max_caption_length' => config('pixelfed.max_caption_length'),
-                'max_bio_length' => config('pixelfed.max_bio_length'),
-                'max_album_length' => config('pixelfed.max_album_length'),
+                'max_photo_size' => (int) config('pixelfed.max_photo_size'),
+                'max_avatar_size' => (int) config('pixelfed.max_avatar_size'),
+                'max_caption_length' => (int) config('pixelfed.max_caption_length'),
+                'max_bio_length' => (int) config('pixelfed.max_bio_length'),
+                'max_album_length' => (int) config('pixelfed.max_album_length'),
                 'mobile_apis' => config('pixelfed.oauth_enabled')
 
             ]
@@ -1525,11 +1525,29 @@ class ApiV1Controller extends Controller
             }
         }
 
-        // Return empty response since we don't handle threading like this
-        $res = [
-            'ancestors' => [],
-            'descendants' => []
-        ];
+        if($status->comments_disabled) {
+            $res = [
+                'ancestors' => [],
+                'descendants' => []
+            ];
+        } else {
+            $ancestors = $status->parent();
+            if($ancestors) {
+                $ares = new Fractal\Resource\Item($ancestors, new StatusTransformer());
+                $ancestors = [
+                    $this->fractal->createData($ares)->toArray()
+                ];
+            } else {
+                $ancestors = [];
+            }
+            $descendants = Status::whereInReplyToId($id)->latest()->limit(20)->get();
+            $dres = new Fractal\Resource\Collection($descendants, new StatusTransformer());
+            $descendants = $this->fractal->createData($dres)->toArray();
+            $res = [
+                'ancestors' => $ancestors,
+                'descendants' => $descendants
+            ];
+        }
 
         return response()->json($res);
     }

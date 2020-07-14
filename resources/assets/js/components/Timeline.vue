@@ -6,8 +6,19 @@
 				<button class="btn btn-dark px-4 rounded-pill font-weight-bold shadow" @click="syncNewPosts">Load New Posts</button>
 			</p>
 		</div>
+		<div class="col-12 pl-3 pl-md-0 pt-3 pl-0">
+			<div class="d-flex justify-content-between align-items-center">
+				<p class="lead text-muted mb-0"><i :class="[scope == 'home' ? 'fas fa-home':'fas fa-stream']"></i> &nbsp; {{scope == 'local' ? 'Public' : 'Home'}} Timeline</p>
+				<p class="mb-0">
+					<a href="#" :class="[layout=='feed'?'font-weight-bold text-dark text-decoration-none':'font-weight-light text-muted text-decoration-none']" @click.prevent="switchFeedLayout('feed')"><i class="fas fa-list"></i> &nbsp; Feed</a>
+					&nbsp; | &nbsp; 
+					<a href="#" :class="[layout!=='feed'?'font-weight-bold text-dark text-decoration-none':'font-weight-light text-muted text-decoration-none']" @click.prevent="switchFeedLayout('grid')"><i class="fas fa-th"></i> &nbsp; Grid</a>
+				</p>
+			</div>
+			<hr>
+		</div>
 		<div :class="[modes.distractionFree ? 'col-md-8 col-lg-8 offset-md-2 px-0 mb-sm-3 timeline order-2 order-md-1':'col-md-8 col-lg-8 px-0 mb-sm-3 timeline order-2 order-md-1']">
-			<div v-if="config.features.stories">
+			<div style="margin-top:-8px;">
 				<story-component v-if="config.features.stories"></story-component>
 			</div>
 			<div>
@@ -330,8 +341,19 @@
 				</div>
 			</div>
 			<div v-else class="row">
+				<div class="col-12 pt-3">
+					<div class="d-flex justify-content-between align-items-center">
+						<p class="lead text-muted mb-0"><i :class="[scope == 'home' ? 'fas fa-home':'fas fa-stream']"></i> &nbsp; {{scope == 'local' ? 'Public' : 'Home'}} Timeline</p>
+						<p class="mb-0">
+							<a href="#" :class="[layout=='feed'?'font-weight-bold text-dark text-decoration-none':'font-weight-light text-muted text-decoration-none']" @click.prevent="switchFeedLayout('feed')"><i class="fas fa-list"></i> &nbsp; Feed</a>
+							&nbsp; | &nbsp; 
+							<a href="#" :class="[layout!=='feed'?'font-weight-bold text-dark text-decoration-none':'font-weight-light text-muted text-decoration-none']" @click.prevent="switchFeedLayout('grid')"><i class="fas fa-th"></i> &nbsp; Grid</a>
+						</p>
+					</div>
+					<hr>
+				</div>
 				<div class="col-12 col-md-4 p-1 p-md-3 mb-3" v-for="(s, index) in feed" :key="`${index}-${s.id}`">
-					<div class="card info-overlay card-md-border-0 shadow-sm border border-light" :href="statusUrl(s)">
+					<a class="card info-overlay card-md-border-0 shadow-sm border border-light" :href="statusUrl(s)">
 						<div :class="[s.sensitive ? 'square' : 'square ' + s.media_attachments[0].filter_class]">
 							<span v-if="s.pf_type == 'photo:album'" class="float-right mr-3 post-icon"><i class="fas fa-images fa-2x"></i></span>
 							<span v-if="s.pf_type == 'video'" class="float-right mr-3 post-icon"><i class="fas fa-video fa-2x"></i></span>
@@ -344,11 +366,11 @@
 								</p>
 							</div>
 						</div>
-					</div>
+					</a>
 					<div class="py-3 media align-items-center">
-						<img :src="s.account.avatar" class="mr-3 rounded-circle shadow-sm" :alt="s.account.username + ' \'s avatar'" width="30px" height="30px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
+						<a class="text-decoration-none" :href="s.account.url"><img :src="s.account.avatar" class="mr-3 rounded-circle shadow-sm" :alt="s.account.username + ' \'s avatar'" width="30px" height="30px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'"></a>
 						<div class="media-body">
-							<p class="mb-0 font-weight-bold small">{{s.account.username}}</p>
+							<p class="mb-0 font-weight-bold small"><a class="text-dark" :href="s.account.url">{{s.account.username}}</a></p>
 							<p class="mb-0" style="line-height: 0.7;">
 								<a :href="statusUrl(s)" class="small text-lighter">
 									<timeago :datetime="s.created_at" :auto-update="60" :converter-options="{includeSeconds:true}" :title="timestampFormat(s.created_at)" v-b-tooltip.hover.bottom></timeago>
@@ -357,7 +379,7 @@
 						</div>
 						<div class="ml-3">
 							<p class="mb-0">
-								<span class="font-weight-bold small">{{s.favourites_count == 1 ? '1 like' : s.favourites_count+' likes'}}</span>
+								<span v-if="statusOwner(s)" class="font-weight-bold small">{{s.favourites_count == 1 ? '1 like' : s.favourites_count+' likes'}}</span>
 								<span class="px-2"><i v-bind:class="[s.favourited ? 'fas fa-heart text-danger cursor-pointer' : 'far fa-heart like-btn text-lighter cursor-pointer']" v-on:click="likeStatus(s, $event)"></i></span>
 								<span class="mr-2 cursor-pointer"><i class="fas fa-ellipsis-v" @click="ctxMenu(s)"></i></span>
 							</p>
@@ -1533,8 +1555,9 @@
 						}
 					}).then(res => {
 						let self = this;
+						let tids = this.feed.map(status => status.id);
 						let data = res.data.filter(d => {
-							return d.id > self.min_id
+							return d.id > self.min_id && tids.indexOf(d.id) == -1;
 						});
 						let ids = data.map(status => status.id);
 						let max = Math.max(...ids).toString();
@@ -1556,7 +1579,16 @@
 				this.feed.unshift(...data);
 				this.morePostsAvailable = false;
 				this.mpData = null;
-			}
+			},
+
+			switchFeedLayout(toggle) {
+				this.loading = true;
+				this.layout = toggle;
+				let self = this;
+				setTimeout(function() {
+					self.loading = false;
+				}, 500);
+			},
 		},
 		beforeDestroy () {
 			clearInterval(this.mpInterval);
