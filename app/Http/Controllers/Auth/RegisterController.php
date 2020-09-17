@@ -58,9 +58,6 @@ class RegisterController extends Controller
             $data['email'] = strtolower($data['email']);
         }
 
-        $this->validateUsername($data['username']);
-        $this->validateEmail($data['email']);
-
         $usernameRules = [
             'required',
             'min:2',
@@ -70,6 +67,10 @@ class RegisterController extends Controller
                 $dash = substr_count($value, '-');
                 $underscore = substr_count($value, '_');
                 $period = substr_count($value, '.');
+
+                if(ends_with($value, ['.php', '.js', '.css'])) {
+                    return $fail('Username is invalid.');
+                }
 
                 if(($dash + $underscore + $period) > 1) {
                     return $fail('Username is invalid. Can only contain one dash (-), period (.) or underscore (_).');
@@ -87,6 +88,25 @@ class RegisterController extends Controller
                 if(!ctype_alnum($val)) {
                     return $fail('Username is invalid. Username must be alpha-numeric and may contain dashes (-), periods (.) and underscores (_).');
                 }
+
+                $restricted = RestrictedNames::get();
+                if (in_array($value, $restricted)) {
+                    return $fail('Username cannot be used.');
+                }
+            },
+        ];
+
+        $emailRules = [
+            'required',
+            'string',
+            'email',
+            'max:255',
+            'unique:users',
+            function ($attribute, $value, $fail) {
+                $banned = EmailService::isBanned($value);
+                if($banned) {
+                    return $fail('Email is invalid.');
+                }
             },
         ];
 
@@ -94,7 +114,7 @@ class RegisterController extends Controller
             'agecheck' => 'required|accepted',
             'name'     => 'nullable|string|max:'.config('pixelfed.max_name_length'),
             'username' => $usernameRules,
-            'email'    => 'required|string|email|max:255|unique:users',
+            'email'    => $emailRules,
             'password' => 'required|string|min:12|confirmed',
         ];
 
@@ -121,23 +141,6 @@ class RegisterController extends Controller
             'email'    => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
-    }
-
-    public function validateUsername($username)
-    {
-        $restricted = RestrictedNames::get();
-
-        if (in_array($username, $restricted)) {
-            return abort(403);
-        }
-    }
-
-    public function validateEmail($email)
-    {
-        $banned = EmailService::isBanned($email);
-        if($banned) {
-            return abort(403, 'Invalid email.');
-        }
     }
 
     /**

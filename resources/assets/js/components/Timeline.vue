@@ -7,12 +7,18 @@
 			</p>
 		</div>
 		<div class="col-12 pl-3 pl-md-0 pt-3 pl-0">
-			<div class="d-flex justify-content-between align-items-center">
+			<div class="d-none d-md-flex justify-content-between align-items-center">
 				<p class="lead text-muted mb-0"><i :class="[scope == 'home' ? 'fas fa-home':'fas fa-stream']"></i> &nbsp; {{scope == 'local' ? 'Public' : 'Home'}} Timeline</p>
 				<p class="mb-0">
-					<a href="#" :class="[layout=='feed'?'font-weight-bold text-dark text-decoration-none':'font-weight-light text-muted text-decoration-none']" @click.prevent="switchFeedLayout('feed')"><i class="fas fa-list"></i> &nbsp; Feed</a>
-					&nbsp; | &nbsp; 
-					<a href="#" :class="[layout!=='feed'?'font-weight-bold text-dark text-decoration-none':'font-weight-light text-muted text-decoration-none']" @click.prevent="switchFeedLayout('grid')"><i class="fas fa-th"></i> &nbsp; Grid</a>
+					<span class="btn-group">
+						<a href="#" :class="[layout=='feed'?'btn btn-sm btn-outline-primary font-weight-bold text-decoration-none':'btn btn-sm btn-outline-lighter font-weight-light text-decoration-none']" @click.prevent="switchFeedLayout('feed')"><i class="fas fa-list"></i></a>
+						<a href="#" :class="[layout!=='feed'?'btn btn-sm btn-outline-primary font-weight-bold text-decoration-none':'btn btn-sm btn-outline-lighter font-weight-light text-decoration-none']" @click.prevent="switchFeedLayout('grid')"><i class="fas fa-th"></i></a>
+					</span>
+				</p>
+				<p class="mb-0 d-none d-md-block">
+					<a class="btn btn-block btn-primary btn-sm font-weight-bold border" href="/i/compose" data-toggle="modal" data-target="#composeModal">
+						<i class="fas fa-camera fa-lg pt-1"></i>
+					</a>
 				</p>
 			</div>
 			<hr>
@@ -27,7 +33,7 @@
 						<span class="sr-only">Loading...</span>
 					</div>
 				</div>
-				<div :data-status-id="status.id" v-for="(status, index) in feed" :key="`${index}-${status.id}`">
+				<div :data-status-id="status.id" v-for="(status, index) in feed" :key="`${index}-${status.id}`" class="pt-4">
 					<div v-if="index == 0 && showTips && !loading" class="mb-4 card-tips">
 						<announcements-card v-on:show-tips="showTips = $event"></announcements-card>
 					</div>
@@ -42,7 +48,7 @@
 									<div class="card-body text-center pt-3">
 										<p class="mb-0">
 											<a :href="'/'+rec.username">
-												<img :src="rec.avatar" class="img-fluid rounded-circle cursor-pointer" width="45px" height="45px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
+												<img :src="rec.avatar" class="img-fluid rounded-circle cursor-pointer" width="45px" height="45px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'" alt="avatar">
 											</a>
 										</p>
 										<div class="py-3">
@@ -91,13 +97,14 @@
 
 					<div class="card mb-sm-4 status-card card-md-rounded-0 shadow-none border">
 						<div v-if="!modes.distractionFree && status" class="card-header d-inline-flex align-items-center bg-white">
-							<img v-bind:src="status.account.avatar" width="38px" height="38px" class="cursor-pointer" style="border-radius: 38px;" @click="profileUrl(status)" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
+							<!-- <img v-bind:src="status.account.avatar" width="38px" height="38px" class="cursor-pointer" style="border-radius: 38px;" @click="profileUrl(status)" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'"> -->
 							<!-- <div v-if="hasStory" class="has-story has-story-sm cursor-pointer shadow-sm" @click="profileUrl(status)">
 								<img class="rounded-circle box-shadow" :src="status.account.avatar" width="32px" height="32px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
 							</div>
-							<div v-else>
-								<img class="rounded-circle box-shadow" :src="status.account.avatar" width="32px" height="32px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
-							</div> -->
+							<div v-else> -->
+							<div>
+								<img class="rounded-circle box-shadow" :src="status.account.avatar" width="32px" height="32px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'" alt="avatar">
+							</div>
 							<div class="pl-2">
 								<!-- <a class="d-block username font-weight-bold text-dark" v-bind:href="status.account.url" style="line-height:0.5;"> -->
 								<a class="username font-weight-bold text-dark text-decoration-none" v-bind:href="profileUrl(status)" v-html="statusCardUsernameFormat(status)">
@@ -107,15 +114,22 @@
 									<i class="fas fa-certificate text-danger fa-stack-1x"></i>
 									<i class="fas fa-crown text-white fa-sm fa-stack-1x" style="font-size:7px;"></i>
 								</span>
-								<span v-if="scope != 'home' && status.account.id != profile.id && status.account.relationship">
+								<!-- <span v-if="scope != 'home' && status.account.id != profile.id && status.account.relationship">
 									<span class="px-1">•</span>
 									<span :class="'font-weight-bold cursor-pointer ' + [status.account.relationship.following == true ? 'text-muted' : 'text-primary']" @click="followAction(status)">{{status.account.relationship.following == true ? 'Following' : 'Follow'}}</span>
-								</span>
-								<a v-if="status.place" class="d-block small text-decoration-none" :href="'/discover/places/'+status.place.id+'/'+status.place.slug" style="color:#718096">{{status.place.name}}, {{status.place.country}}</a>
+								</span> -->
+								<!-- <span v-if="status.account.id != profile.id">
+									<span class="px-1">•</span>
+									<span class="font-weight-bold cursor-pointer text-primary">Follow</span>
+								</span> -->
+								<div class="d-flex align-items-center">
+									<a v-if="status.place" class="small text-decoration-none text-muted" :href="'/discover/places/'+status.place.id+'/'+status.place.slug" title="Location" data-toggle="tooltip"><i class="fas fa-map-marked-alt"></i> {{status.place.name}}, {{status.place.country}}</a>
+								</div>
 							</div>
 							<div class="text-right" style="flex-grow:1;">
 								<button class="btn btn-link text-dark py-0" type="button" @click="ctxMenu(status)">
 									<span class="fas fa-ellipsis-h text-lighter"></span>
+									<span class="sr-only">Post Menu</span>
 								</button>
 							</div>
 						</div>
@@ -144,15 +158,25 @@
 							<div v-else class="w-100">
 								<p class="text-center p-0 font-weight-bold text-white">Error: Problem rendering preview.</p>
 							</div>
+
 						</div>
 
 						<div class="card-body">
 							<div v-if="!modes.distractionFree" class="reactions my-1 pb-2">
-								<h3 v-bind:class="[status.favourited ? 'fas fa-heart text-danger pr-3 m-0 cursor-pointer' : 'far fa-heart pr-3 m-0 like-btn text-lighter cursor-pointer']" title="Like" v-on:click="likeStatus(status, $event)"></h3>
+								<h3 v-if="status.favourited" class="fas fa-heart text-danger pr-3 m-0 cursor-pointer" title="Like" v-on:click="likeStatus(status, $event);"></h3>
+								<h3 v-else class="far fa-heart pr-3 m-0 like-btn text-lighter cursor-pointer" title="Like" v-on:click="likeStatus(status, $event);"></h3>
 								<h3 v-if="!status.comments_disabled" class="far fa-comment text-lighter pr-3 m-0 cursor-pointer" title="Comment" v-on:click="commentFocus(status, $event)"></h3>
 								<h3 v-if="status.visibility == 'public'" v-bind:class="[status.reblogged ? 'fas fa-retweet pr-3 m-0 text-primary cursor-pointer' : 'fas fa-retweet pr-3 m-0 text-lighter share-btn cursor-pointer']" title="Share" v-on:click="shareStatus(status, $event)"></h3>
-								<span v-if="status.pf_type == 'photo'" class="float-right">
-									<h3 class="fas fa-expand pr-3 m-0 cursor-pointer text-lighter" v-on:click="lightbox(status)"></h3>
+								<h3 class="fas fa-expand pr-3 m-0 cursor-pointer text-lighter" v-on:click="lightbox(status)"></h3>
+								<span v-if="status.taggedPeople.length" class="float-right">
+									<span class="font-weight-light small" style="color:#718096">
+										<i class="far fa-user" data-toggle="tooltip" title="Tagged People"></i>
+										<span v-for="(tag, index) in status.taggedPeople" class="mr-n2">
+											<a :href="'/'+tag.username">
+												<img :src="tag.avatar" width="20px" height="20px" class="border rounded-circle" data-toggle="tooltip" :title="'@'+tag.username" alt="Avatar">
+											</a>
+										</span>
+									</span>
 								</span>
 							</div>
 
@@ -168,13 +192,13 @@
 								</p>
 							</div>
 							<div class="comments" v-if="status.id == replyId && !status.comments_disabled">
-								<p class="mb-0 d-flex justify-content-between align-items-top read-more" style="overflow-y: hidden;" v-for="(reply, index) in replies">
+								<p class="mb-0 d-flex justify-content-between align-items-top read-more mt-2" style="overflow-y: hidden;" v-for="(reply, index) in replies">
 										<span>
 											<a class="text-dark font-weight-bold mr-1" :href="profileUrl(reply)">{{reply.account.username}}</a>
-											<span v-html="reply.content"></span>
+											<span v-html="reply.content" style="word-break: break-all;" class="comment-body"></span>
 										</span>
 										<span class="mb-0" style="min-width:38px">
-											<span v-on:click="likeStatus(reply, $event)">
+											<span v-on:click="likeStatus(reply, $event);">
 												<i v-bind:class="[reply.favourited ? 'fas fa-heart fa-sm text-danger cursor-pointer':'far fa-heart fa-sm text-lighter cursor-pointer']"></i>
 											</span>
 											<!-- <post-menu :status="reply" :profile="profile" size="sm" :modal="'true'" :feed="feed" class="d-inline-flex pl-2"></post-menu> -->
@@ -234,18 +258,25 @@
 		</div>
 
 		<div v-if="!modes.distractionFree" class="col-md-4 col-lg-4 my-3 order-1 order-md-2 d-none d-md-block">
-			<div class="position-sticky" style="top:83px;">
+			<div>
+
+				<!-- <div class="mb-4">
+					<a class="btn btn-block btn-primary btn-sm font-weight-bold mb-3 border" href="/i/compose" data-toggle="modal" data-target="#composeModal">
+						<i class="far fa-plus-square pr-3 fa-lg pt-1"></i> New Post
+					</a>
+				</div> -->
+
 				<div class="mb-4">
-					<div class="card shadow-none border">
-						<div class="card-body pb-2">
+					<div v-show="!loading" class="">
+						<div class="pb-2">
 							<div class="media d-flex align-items-center">
 								<a :href="!userStory ? profile.url : '/stories/' + profile.acct" class="mr-3">
 									<!-- <img class="mr-3 rounded-circle box-shadow" :src="profile.avatar || '/storage/avatars/default.png'" alt="avatar" width="64px" height="64px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'"> -->
 									<div v-if="userStory" class="has-story cursor-pointer shadow-sm" @click="storyRedirect()">
-										<img class="rounded-circle box-shadow" :src="profile.avatar" width="64px" height="64px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
+										<img class="rounded-circle box-shadow" :src="profile.avatar" width="64px" height="64px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'" alt="avatar">
 									</div>
 									<div v-else>
-										<img class="rounded-circle box-shadow" :src="profile.avatar" width="64px" height="64px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
+										<img class="rounded-circle box-shadow" :src="profile.avatar" width="64px" height="64px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'" alt="avatar">
 									</div>
 								</a>
 								<div class="media-body d-flex justify-content-between word-break" >
@@ -254,12 +285,15 @@
 										<p class="my-0 text-muted pb-0">{{profile.display_name || 'loading...'}}</p>
 									</div>
 									<div class="ml-2">
-										<a class="text-muted" href="/settings/home"><i class="fas fa-cog fa-lg"></i></a>
+										<a class="text-muted" href="/settings/home">
+											<i class="fas fa-cog fa-lg"></i>
+                                    		<span class="sr-only">User Settings</span>
+										</a>
 									</div>
 								</div>
 							</div>
 						</div>
-						<div class="card-footer bg-transparent border-top mt-2 py-1">
+						<!-- <div class="card-footer bg-transparent border-top mt-2 py-1">
 							<div class="d-flex justify-content-between text-center">
 								<span class="cursor-pointer" @click="redirect(profile.url)">
 									<p class="mb-0 font-weight-bold">{{formatCount(profile.statuses_count)}}</p>
@@ -274,14 +308,8 @@
 									<p class="mb-0 small text-muted">Following</p>
 								</span>
 							</div>
-						</div>
+						</div> -->
 					</div>
-				</div>
-
-				<div class="mb-4">
-					<a class="btn btn-light btn-block btn-sm font-weight-bold text-dark mb-3 border bg-white" href="/i/compose" data-toggle="modal" data-target="#composeModal">
-						<i class="far fa-plus-square pr-3 fa-lg pt-1"></i> Compose Post
-					</a>
 				</div>
 
 				<div v-show="modes.notify == true && !loading" class="mb-4">
@@ -298,7 +326,7 @@
 						<div class="card-body pt-0">
 							<div v-for="(rec, index) in suggestions" class="media align-items-center mt-3">
 								<a :href="'/'+rec.username">
-									<img :src="rec.avatar" width="32px" height="32px" class="rounded-circle mr-3" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
+									<img :src="rec.avatar" width="32px" height="32px" class="rounded-circle mr-3" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'" alt="avatar">
 								</a>
 								<div class="media-body">
 									<p class="mb-0 font-weight-bold small">
@@ -333,21 +361,27 @@
 			</div>
 		</div>
 	</div>
-	<div v-else class="row pt-2">
+	<div v-else class="row">
 		<div class="col-12">
-			<div v-if="loading" class="text-center">
+			<!-- <div v-if="loading" class="text-center">
 				<div class="spinner-border" role="status">
 					<span class="sr-only">Loading...</span>
 				</div>
-			</div>
-			<div v-else class="row">
-				<div class="col-12 pt-3">
+			</div> -->
+			<div class="row">
+				<div class="col-12 pl-3 pl-md-0 pt-3 pl-0">
 					<div class="d-flex justify-content-between align-items-center">
 						<p class="lead text-muted mb-0"><i :class="[scope == 'home' ? 'fas fa-home':'fas fa-stream']"></i> &nbsp; {{scope == 'local' ? 'Public' : 'Home'}} Timeline</p>
 						<p class="mb-0">
-							<a href="#" :class="[layout=='feed'?'font-weight-bold text-dark text-decoration-none':'font-weight-light text-muted text-decoration-none']" @click.prevent="switchFeedLayout('feed')"><i class="fas fa-list"></i> &nbsp; Feed</a>
-							&nbsp; | &nbsp; 
-							<a href="#" :class="[layout!=='feed'?'font-weight-bold text-dark text-decoration-none':'font-weight-light text-muted text-decoration-none']" @click.prevent="switchFeedLayout('grid')"><i class="fas fa-th"></i> &nbsp; Grid</a>
+							<span class="btn-group">
+								<a href="#" :class="[layout=='feed'?'btn btn-sm btn-outline-primary font-weight-bold text-decoration-none':'btn btn-sm btn-outline-lighter font-weight-light text-decoration-none']" @click.prevent="switchFeedLayout('feed')"><i class="fas fa-list"></i></a>
+								<a href="#" :class="[layout!=='feed'?'btn btn-sm btn-outline-primary font-weight-bold text-decoration-none':'btn btn-sm btn-outline-lighter font-weight-light text-decoration-none']" @click.prevent="switchFeedLayout('grid')"><i class="fas fa-th"></i></a>
+							</span>
+						</p>
+						<p class="mb-0 d-none d-md-block">
+							<a class="btn btn-block btn-primary btn-sm font-weight-bold border" href="/i/compose" data-toggle="modal" data-target="#composeModal">
+								<i class="fas fa-camera fa-lg pt-1"></i>
+							</a>
 						</p>
 					</div>
 					<hr>
@@ -380,7 +414,7 @@
 						<div class="ml-3">
 							<p class="mb-0">
 								<span v-if="statusOwner(s)" class="font-weight-bold small">{{s.favourites_count == 1 ? '1 like' : s.favourites_count+' likes'}}</span>
-								<span class="px-2"><i v-bind:class="[s.favourited ? 'fas fa-heart text-danger cursor-pointer' : 'far fa-heart like-btn text-lighter cursor-pointer']" v-on:click="likeStatus(s, $event)"></i></span>
+								<span class="px-2"><i v-bind:class="[s.favourited ? 'fas fa-heart text-danger cursor-pointer' : 'far fa-heart like-btn text-lighter cursor-pointer']" v-on:click="likeStatus(s, $event);"></i></span>
 								<span class="mr-2 cursor-pointer"><i class="fas fa-ellipsis-v" @click="ctxMenu(s)"></i></span>
 							</p>
 						</div>
@@ -495,7 +529,7 @@
 	body-class="p-0"
 	>
 	<div v-if="lightboxMedia" :class="lightboxMedia.filter_class" class="w-100 h-100">
-		<img :src="lightboxMedia.url" style="max-height: 100%; max-width: 100%">
+		<img :src="lightboxMedia.url" style="max-height: 100%; max-width: 100%" alt="lightbox media">
 	</div>
  </b-modal>
 <b-modal ref="replyModal"
@@ -509,7 +543,7 @@
 	size="md"
 	body-class="p-2 rounded">
 	<div>
-		<textarea class="form-control" rows="4" style="border: none; font-size: 18px; resize: none; white-space: nowrap;outline: none;" placeholder="Reply here ..." v-model="replyText">
+		<textarea class="form-control" rows="4" style="border: none; font-size: 18px; resize: none; white-space: pre-wrap;outline: none;" placeholder="Reply here ..." v-model="replyText">
 		</textarea>
 
 		<div class="border-top border-bottom my-2">
@@ -520,7 +554,7 @@
 		<div class="d-flex justify-content-between align-items-center">
 			<div>
 				<span class="pl-2 small text-muted font-weight-bold text-monospace">
-					{{replyText.length}}/600
+					<span :class="[replyText.length > config.uploader.max_caption_length ? 'text-danger':'text-dark']">{{replyText.length > config.uploader.max_caption_length ? config.uploader.max_caption_length - replyText.length : replyText.length}}</span>/{{config.uploader.max_caption_length}}
 				</span>
 			</div>
 			<div class="d-flex align-items-center">
@@ -795,6 +829,18 @@
 					}
 					// this.fetchStories();
 					this.rtw();
+					setTimeout(function() {
+						document.querySelectorAll('.caption .status-content a').forEach(function(i, e) { 
+							if(i.href.startsWith(window.location.origin)) {
+								return;
+							}
+							let tag = i.innerText;
+							if(tag.startsWith('#')) {
+								tag = tag.substr(1);
+							}
+							i.href = '/discover/tags/'+tag+'?src=rph'; 
+						});
+					}, 500);
 				}).catch(err => {
 					swal(
 						'Oops, something went wrong',
@@ -879,7 +925,7 @@
 
 			},
 
-			likeStatus(status) {
+			likeStatus(status, event) {
 				if($('body').hasClass('loggedIn') == false) {
 					return;
 				}
@@ -894,6 +940,12 @@
 					status.favourites_count = count;
 					swal('Error', 'Something went wrong, please try again later.', 'error');
 				});
+				window.navigator.vibrate(200);
+				if(status.favourited) {
+					setTimeout(function() {
+						event.target.classList.add('animate__animated', 'animate__bounce');
+					},100);
+				}
 			},
 
 			shareStatus(status, $event) {
@@ -938,6 +990,18 @@
 						return res.sensitive == false;
 					});
 					this.replies = _.reverse(data);
+					setTimeout(function() {
+						document.querySelectorAll('.comments .comment-body a').forEach(function(i, e) { 
+							if(i.href.startsWith(window.location.origin)) {
+								return;
+							}
+							let tag = i.innerText;
+							if(tag.startsWith('#')) {
+								tag = tag.substr(1);
+							}
+							i.href = '/discover/tags/'+tag+'?src=rph'; 
+						});
+					}, 500);
 				}).catch(err => {
 				})
 			},
@@ -999,6 +1063,12 @@
 				this.replySending = true;
 				let id = status.id;
 				let comment = this.replyText;
+				let limit = this.config.uploader.max_caption_length;
+				if(comment.length > limit) {
+					this.replySending = false;
+					swal('Comment Too Long', 'Please make sure your comment is '+limit+' characters or less.', 'error');
+					return;
+				}
 				axios.post('/i/comment', {
 					item: id,
 					comment: comment
@@ -1184,6 +1254,8 @@
 			},
 
 			lightbox(status) {
+				window.location.href = status.media_attachments[0].url;
+				return;
 				this.lightboxMedia = status.media_attachments[0];
 				this.$refs.lightboxModal.show();
 			},

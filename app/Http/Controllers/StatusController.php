@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use League\Fractal;
 use App\Util\Media\Filter;
 use Illuminate\Support\Str;
+use App\Services\HashidService;
 
 class StatusController extends Controller
 {
@@ -65,6 +66,17 @@ class StatusController extends Controller
         return view($template, compact('user', 'status'));
     }
 
+    public function shortcodeRedirect(Request $request, $id)
+    {
+        abort_if(strlen($id) < 5, 404);
+        if(!Auth::check()) {
+            return redirect('/login?next='.urlencode('/' . $request->path()));
+        }
+        $id = HashidService::decode($id);
+        $status = Status::findOrFail($id);
+        return redirect($status->url());
+    }
+
     public function showId(int $id)
     {
         abort(404);
@@ -88,7 +100,7 @@ class StatusController extends Controller
             ->whereNull('uri')
             ->whereScope('public')
             ->whereIsNsfw(false)
-            ->whereIn('type', ['photo', 'video'])
+            ->whereIn('type', ['photo', 'video','photo:album'])
             ->find($id);
         if(!$status) {
             $content = view('status.embed-removed');

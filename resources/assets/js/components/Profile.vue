@@ -140,7 +140,7 @@
 										<span class="font-weight-bold pr-3">{{profile.display_name}}</span>
 									</p>
 									<div v-if="profile.note" class="mb-0" v-html="profile.note"></div>
-									<p v-if="profile.website" class=""><a :href="profile.website" class="profile-website" rel="me external nofollow noopener" target="_blank">{{profile.website}}</a></p>
+									<p v-if="profile.website" class=""><a :href="profile.website" class="profile-website" rel="me external nofollow noopener" target="_blank">{{truncate(profile.website,24)}}</a></p>
 								</div>
 							</div>
 						</div>
@@ -165,7 +165,7 @@
 						<a :class="this.mode == 'collections' ? 'nav-link text-dark' : 'nav-link'" href="#" v-on:click.prevent="switchMode('collections')"><i class="fas fa-images"></i> <span class="d-none d-md-inline-block small pl-1">COLLECTIONS</span></a>
 					</li>
 					<li v-if="owner" class="nav-item border-top">
-						<a :class="this.mode == 'bookmarks' ? 'nav-link text-dark' : 'nav-link'" href="#" v-on:click.prevent="switchMode('bookmarks')"><i class="fas fa-bookmark"></i></a>
+						<a :class="this.mode == 'bookmarks' ? 'nav-link text-dark' : 'nav-link'" href="#" v-on:click.prevent="switchMode('bookmarks')"><i class="fas fa-bookmark"></i> <span class="d-none d-md-inline-block small pl-1">SAVED</span></a>
 					</li>
 				</ul>
 			</div>
@@ -434,6 +434,10 @@
 		dialog-class="follow-modal"
 		>
 		<div class="list-group">
+			<div v-if="followers.length == 0" class="list-group-item border-0">
+				<p class="text-center mb-0 font-weight-bold text-muted py-5">
+					<span class="text-dark">{{profileUsername}}</span> has no followers yet</p>
+			</div>
 			<div class="list-group-item border-0 py-1" v-for="(user, index) in followers" :key="'follower_'+index">
 				<div class="media mb-0">
 					<a :href="user.url">
@@ -452,7 +456,7 @@
 					<!-- <button class="btn btn-primary font-weight-bold btn-sm py-1">FOLLOW</button> -->
 				</div>
 			</div>
-			<div v-if="followerMore" class="list-group-item text-center" v-on:click="followersLoadMore()">
+			<div v-if="followers.length && followerMore" class="list-group-item text-center" v-on:click="followersLoadMore()">
 				<p class="mb-0 small text-muted font-weight-light cursor-pointer">Load more</p>
 			</div>
 		</div>
@@ -495,7 +499,10 @@
 			<div v-if="user && owner" class="list-group-item cursor-pointer text-center rounded text-dark" @click="redirect('/settings/home')">
 				Settings
 			</div>
-			<div class="list-group-item cursor-pointer text-center rounded text-muted" @click="$refs.visitorContextMenu.hide()">
+			<div class="list-group-item cursor-pointer text-center rounded text-dark" @click="redirect('/users/' + profileUsername + '.atom')">
+				Atom Feed
+			</div>
+			<div class="list-group-item cursor-pointer text-center rounded text-muted font-weight-bold" @click="$refs.visitorContextMenu.hide()">
 				Close
 			</div>
 		</div>
@@ -1263,6 +1270,12 @@
 						self.followingModalSearch = null;
 					});
 				}
+			},
+
+			truncate(str, len) {
+				return _.truncate(str, {
+					length: len
+				});
 			}
 		}
 	}

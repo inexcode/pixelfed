@@ -1,17 +1,17 @@
 <nav class="navbar navbar-expand navbar-light navbar-laravel shadow-none border-bottom sticky-top py-1">
     <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{{ route('timeline.personal') }}" title="Logo">
-                <img src="/img/pixelfed-icon-color.svg" height="30px" class="px-2" loading="eager">
+                <img src="/img/pixelfed-icon-color.svg" height="30px" class="px-2" loading="eager" alt="Pixelfed logo">
                 <span class="font-weight-bold mb-0 d-none d-sm-block" style="font-size:20px;">{{ config('app.name', 'pixelfed') }}</span>
             </a>
 
             <div class="collapse navbar-collapse">
             @auth
-                <ul class="navbar-nav d-none d-md-block mx-auto">
+                <div class="navbar-nav d-none d-md-block mx-auto">
                   <form class="form-inline search-bar" method="get" action="/i/results">
-                    <input class="form-control form-control-sm" name="q" placeholder="{{__('navmenu.search')}}" aria-label="search" autocomplete="off" required style="line-height: 0.6;width:200px">
+                    <input class="form-control form-control-sm" name="q" placeholder="{{__('navmenu.search')}}" aria-label="search" autocomplete="off" required style="line-height: 0.6;width:200px" role="search">
                   </form>
-                </ul>
+                </div>
             @endauth
 
             @guest
@@ -32,28 +32,27 @@
             @else
                 <div class="ml-auto">
                     <ul class="navbar-nav">
-                        <div class="d-none d-md-block">
-                            <li class="nav-item px-md-2">
-                                <a class="nav-link font-weight-bold text-muted" href="{{route('discover')}}" title="Discover" data-toggle="tooltip" data-placement="bottom">
-                                    <i class="far fa-compass fa-lg"></i>
-                                </a>
-                            </li>
-                        </div>
-                        <div class="d-none d-md-block">
-                            <li class="nav-item px-md-2">
-                                <a class="nav-link font-weight-bold text-muted" href="/account/activity" title="Notifications" data-toggle="tooltip" data-placement="bottom">
-                                    <i class="far fa-bell fa-lg"></i>
-                                </a>
-                            </li>
-                        </div>
+                        <li class="nav-item px-md-2 d-none d-md-block">
+                            <a class="nav-link font-weight-bold text-muted" href="{{route('discover')}}" title="Discover" data-toggle="tooltip" data-placement="bottom">
+                                <i class="far fa-compass fa-lg"></i>
+                                <span class="sr-only">Discover</span>
+                            </a>
+                        </li>
+                        <li class="nav-item px-md-2 d-none d-md-block">
+                            <a class="nav-link font-weight-bold text-muted" href="/account/activity" title="Notifications" data-toggle="tooltip" data-placement="bottom">
+                                <i class="far fa-bell fa-lg"></i>
+                                <span class="sr-only">Notifications</span>
+                            </a>
+                        </li>
                         <li class="nav-item dropdown ml-2">
                             <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="User Menu" data-toggle="tooltip" data-placement="bottom">
                                 <i class="far fa-user fa-lg text-muted"></i>
+                                <span class="sr-only">User Menu</span>
                             </a>
 
                             <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
                                 <div class="dropdown-item font-weight-bold cursor-pointer" onclick="App.util.compose.post()">
-                                    <span class="fas fa-plus-square pr-2 text-lighter"></span>
+                                    <span class="fas fa-camera pr-2 text-primary"></span>
                                     New Post
                                 </div>
                                 <div class="dropdown-divider"></div>
@@ -63,7 +62,11 @@
                                 </a>
                                 <a class="dropdown-item font-weight-bold" href="{{route('timeline.public')}}">
                                     <span class="fas fa-stream pr-2 text-lighter"></span>
-                                    Local
+                                    Public
+                                </a>
+                                <a class="dropdown-item font-weight-bold" href="/i/stories/new">
+                                    <span class="fas fa-history text-lighter pr-2"></span>
+                                    Stories
                                 </a>
                                 {{-- <a class="dropdown-item font-weight-bold" href="#">
                                     <span class="fas fa-circle-notch pr-2 text-lighter"></span>
