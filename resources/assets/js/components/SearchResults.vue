@@ -24,7 +24,7 @@
 			<div class="col-12 mb-5">
 				<hr>
 			</div>
-			<div v-if="placesSearchEnabled && showPlaces" class="col-12">
+			<div v-if="placesSearchEnabled && showPlaces" class="col-12 mb-4">
 				<div class="mb-4">
 					<p class="text-secondary small font-weight-bold">PLACES <span class="pl-1 text-lighter">({{results.placesPagination.total}})</span></p>
 				</div>
@@ -361,6 +361,10 @@ export default {
 			let lexer = this.searchLexer();
 			this.analysis = lexer;
 			this.fetchSearchResults();
+			axios.get('/api/pixelfed/v1/accounts/verify_credentials').then(res => {
+				window._sharedData.curUser = res.data;
+				window.App.util.navatar();
+			});
 		},
 
 		fetchSearchResults() {

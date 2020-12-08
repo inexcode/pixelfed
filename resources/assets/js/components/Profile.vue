@@ -102,17 +102,18 @@
 									</span>
 									<span v-if="profile.id != user.id && user.hasOwnProperty('id')">
 										<span class="pl-4" v-if="relationship.following == true">
-											<button type="button"  class="btn btn-outline-secondary font-weight-bold btn-sm py-1" v-on:click="followProfile" data-toggle="tooltip" title="Unfollow">FOLLOWING</button>
+											<a :href="'/account/direct/t/'+profile.id"  class="btn btn-outline-secondary font-weight-bold btn-sm py-1 text-dark mr-2 px-3 btn-sec-alt" style="border:1px solid #dbdbdb;" data-toggle="tooltip" title="Message">Message</a>
+											<button type="button"  class="btn btn-outline-secondary font-weight-bold btn-sm py-1 text-dark btn-sec-alt" style="border:1px solid #dbdbdb;" v-on:click="followProfile" data-toggle="tooltip" title="Unfollow"><i class="fas fa-user-check mx-3"></i></button>
 										</span>
 										<span class="pl-4" v-if="!relationship.following">
-											<button type="button" class="btn btn-primary font-weight-bold btn-sm py-1" v-on:click="followProfile" data-toggle="tooltip" title="Follow">FOLLOW</button>
+											<button type="button" class="btn btn-primary font-weight-bold btn-sm py-1 px-3" v-on:click="followProfile" data-toggle="tooltip" title="Follow">Follow</button>
 										</span>
 									</span>
 									<span class="pl-4" v-if="owner && user.hasOwnProperty('id')">
 										<a class="btn btn-outline-secondary btn-sm" href="/settings/home" style="font-weight: 600;">Edit Profile</a>
 									</span>
 									<span class="pl-4">
-										<a class="fas fa-ellipsis-h fa-lg text-muted text-decoration-none" href="#" @click.prevent="visitorMenu"></a>
+										<a class="fas fa-ellipsis-h fa-lg text-dark text-decoration-none" href="#" @click.prevent="visitorMenu"></a>
 									</span> 
 								</div>
 								<div class="font-size-16px">
@@ -614,6 +615,12 @@
 	.modal-tab-active {
 		border-bottom: 1px solid #08d;
 	}
+	.btn-sec-alt:hover {
+		color: #ccc;
+		opacity: .7;
+		background-color: transparent;
+		border-color: #6c757d;
+	}
 </style>
 <script type="text/javascript">
 	import VueMasonry from 'vue-masonry-css'
@@ -698,6 +705,8 @@
 			if(document.querySelectorAll('body')[0].classList.contains('loggedIn') == true) {
 				axios.get('/api/pixelfed/v1/accounts/verify_credentials').then(res => {
 					this.user = res.data;
+					window._sharedData.curUser = res.data;
+					window.App.util.navatar();
 					if(res.data.id == this.profileId || this.relationship.following == true) {
 						axios.get('/api/stories/v0/exists/' + this.profileId)
 						.then(res => {

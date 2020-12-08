@@ -245,7 +245,7 @@
                   </span>
                 </div>
                 <div class="timestamp pt-2 d-flex align-items-bottom justify-content-between">
-                  <a v-bind:href="statusUrl" class="small text-muted">
+                  <a v-bind:href="statusUrl" class="small text-muted" :title="status.created_at">
                     {{timestampFormat()}}
                   </a>
                   <span class="small text-muted text-capitalize cursor-pointer" v-on:click="visibilityModal">{{status.visibility}}</span>
@@ -831,7 +831,7 @@ export default {
 
       timestampFormat() {
           let ts = new Date(this.status.created_at);
-          return ts.toDateString() + ' ' + ts.toLocaleTimeString();
+          return ts.toDateString();
       },
 
       fetchData() {
@@ -841,6 +841,7 @@ export default {
                 self.status = response.data.status;
                 self.user = response.data.user;
                 window._sharedData.curUser = self.user;
+                window.App.util.navatar();
                 self.media = self.status.media_attachments;
                 self.reactions = response.data.reactions;
                 self.likes = response.data.likes;
@@ -1149,8 +1150,10 @@ export default {
           this.replyToIndex = index;
           this.replyingToId = e.id;
           this.reply_to_profile_id = e.account.id;
+          let username = e.account.local ? '@' + e.account.username + ' '
+            : '@' + e.account.acct + ' ';
           if(prependUsername == true) {
-            this.replyText = '@' + e.account.username + ' ';
+            this.replyText = username;
           }
           $('textarea[name="comment"]').focus();
       },

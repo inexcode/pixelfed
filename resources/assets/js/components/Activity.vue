@@ -52,6 +52,11 @@
 									<a :href="n.account.url" class="font-weight-bold text-dark word-break" :title="n.account.username">{{truncate(n.account.username)}}</a> tagged you in a <a class="font-weight-bold" v-bind:href="n.tagged.post_url">post</a>.
 								</p>
 							</div>
+							<div v-else-if="n.type == 'direct'">
+							<p class="my-0">
+								<a :href="n.account.url" class="font-weight-bold text-dark word-break" :title="n.account.username">{{truncate(n.account.username)}}</a> sent a <a class="font-weight-bold" v-bind:href="'/account/direct/t/'+n.account.id">dm</a>.
+							</p>
+						</div>
 							<div class="align-items-center">
 								<span class="small text-muted" data-toggle="tooltip" data-placement="bottom" :title="n.created_at">{{timeAgo(n.created_at)}}</span>
 							</div>
@@ -125,6 +130,10 @@ export default {
 
 	methods: {
 		fetchNotifications() {
+			axios.get('/api/pixelfed/v1/accounts/verify_credentials').then(res => {
+					window._sharedData.curUser = res.data;
+					window.App.util.navatar();
+			});
 			axios.get('/api/pixelfed/v1/notifications', {
 				params: {
 					pg: true
@@ -249,6 +258,9 @@ export default {
 				case 'tagged':
 					return n.tagged.post_url;
 				break;
+				case 'direct':
+					return '/account/direct/t/'+n.account.id;
+				break
 			}
 			return '/';
 		},

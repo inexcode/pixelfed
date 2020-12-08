@@ -1,6 +1,8 @@
 <template>
 <div>
 	<input type="file" id="pf-dz" name="media" class="w-100 h-100 d-none file-input" v-bind:accept="config.uploader.media_types">
+	<canvas class="d-none" id="pr_canvas"></canvas>
+	<img class="d-none" id="pr_img">
 	<div class="timeline">
 		<div v-if="uploading">
 			<div class="card status-card card-md-rounded-0 w-100 h-100 bg-light py-3" style="border-bottom: 1px solid #f1f1f1">
@@ -237,7 +239,7 @@
 								<div class="media-body">
 									<div class="form-group">
 										<label class="font-weight-bold text-muted small d-none">Caption</label>
-										<textarea class="form-control border-0 rounded-0 no-focus" rows="2" placeholder="Write a caption..." style="resize:none" v-model="composeText" v-on:keyup="composeTextLength = composeText.length"></textarea>
+										<textarea class="form-control border-0 rounded-0 no-focus" rows="3" placeholder="Write a caption..." style="" v-model="composeText" v-on:keyup="composeTextLength = composeText.length"></textarea>
 										<p class="help-text small text-right text-muted mb-0">{{composeTextLength}}/{{config.uploader.max_caption_length}}</p>
 									</div>
 								</div>
@@ -271,7 +273,7 @@
 							<p class="px-4 mb-0 py-2">
 								<span>Audience</span>
 								<span class="float-right">
-									<a v-if="profile.locked == false" href="#" @click.prevent="showVisibilityCard()" class="btn btn-outline-secondary btn-sm small mr-3 mt-n1 disabled" style="font-size:10px;padding:3px;text-transform: uppercase" disabled>{{visibilityTag}}</a>
+									<a href="#" @click.prevent="showVisibilityCard()" class="btn btn-outline-secondary btn-sm small mr-3 mt-n1 disabled" style="font-size:10px;padding:3px;text-transform: uppercase" disabled>{{visibilityTag}}</a>
 									<a href="#" @click.prevent="showVisibilityCard()" class="text-decoration-none"><i class="fas fa-chevron-right fa-lg text-lighter"></i></a>
 								</span>
 							</p>
@@ -632,12 +634,13 @@ export default {
 
 	methods: {
 		fetchProfile() {
+			let self = this;
 			axios.get('/api/pixelfed/v1/accounts/verify_credentials').then(res => {
-				this.profile = res.data;
+				self.profile = res.data;
 				window.pixelfed.currentUser = res.data;
 				if(res.data.locked == true) {
-					this.visibility = 'private';
-					this.visibilityTag = 'Followers Only';
+					self.visibility = 'private';
+					self.visibilityTag = 'Followers Only';
 				}
 			}).catch(err => {
 			});
@@ -663,6 +666,9 @@ export default {
 			let self = this;
 			self.uploading = true;
 			let io = document.querySelector('#pf-dz');
+			if(!io.files.length) {
+				self.uploading = false;
+			}
 			Array.prototype.forEach.call(io.files, function(io, i) {
 				if(self.media && self.media.length + i >= self.config.uploader.album_limit) {
 					swal('Error', 'You can only upload ' + self.config.uploader.album_limit + ' photos per album', 'error');
@@ -979,8 +985,39 @@ export default {
 				this.cameraRollMedia = res.data;
 			});
 		},
+
 		applyFilterToMedia() {
 			// this is where the magic happens
+
+			let medias = this.media;
+			let media = null;
+			const canvas = document.getElementById('pr_canvas');
+			const ctx = canvas.getContext('2d');
+			let image = document.getElementById('pr_img');
+			let blob = null;
+			let data = null;
+
+			for (var i = medias.length - 1; i >= 0; i--) {
+				media = medias[i];
+				if(media.filter_class) {
+					image.src = media.url;
+					image.addEventListener('load', e => {
+						canvas.width = image.width;
+						canvas.height = image.height;
+						ctx.filter = App.util.filterCss[media.filter_class];
+						ctx.drawImage(image, 0, 0, image.width, image.height);
+						ctx.save();
+						canvas.toBlob(function(blob) {
+							data = new FormData();
+							data.append('file', blob);
+							axios.post('/api/local/compose/media/update/'+media.id, data).then(res => {
+							}).catch(err => {
+							});
+						}, media.mime, 0.9);
+					});
+					ctx.clearRect(0, 0, image.width, image.height);
+				}
+			}
 
 		},
 
