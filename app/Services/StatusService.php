@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
-use Redis;
+use Illuminate\Support\Facades\Redis;
 use App\Status;
+//use App\Transformer\Api\v3\StatusTransformer;
 use App\Transformer\Api\StatusStatelessTransformer;
+use App\Transformer\Api\StatusTransformer;
 use League\Fractal;
 use League\Fractal\Serializer\ArraySerializer;
 use League\Fractal\Pagination\IlluminatePaginatorAdapter;
@@ -15,12 +17,12 @@ class StatusService {
 
 	public static function get($id)
 	{
-		return Redis::get(self::CACHE_KEY . $id) ?? self::coldGet($id);
+		return json_decode(Redis::get(self::CACHE_KEY . $id) ?? self::coldGet($id), true);
 	}
 
 	public static function coldGet($id)
 	{
-		$status = Status::findOrFail($id);
+		$status = Status::whereScope('public')->findOrFail($id);
 		$fractal = new Fractal\Manager();
 		$fractal->setSerializer(new ArraySerializer());
 		$resource = new Fractal\Resource\Item($status, new StatusStatelessTransformer());

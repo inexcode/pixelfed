@@ -64,22 +64,34 @@ class Profile extends Model
 
     public function followingCount($short = false)
     {
-        $count = $this->following()->count();
-        if ($short) {
-            return PrettyNumber::convert($count);
-        } else {
+        $count = Cache::remember('profile:following_count:'.$this->id, now()->addMonths(1), function() {
+            $count = $this->following()->count();
+            if($this->following_count != $count) {
+                $this->following_count = $count;
+                $this->save();
+            }
             return $count;
-        }
+        });
+
+        return $short ? PrettyNumber::convert($count) : $count;
     }
 
     public function followerCount($short = false)
     {
-        $count = $this->followers()->count();
-        if ($short) {
-            return PrettyNumber::convert($count);
-        } else {
+        $count = Cache::remember('profile:follower_count:'.$this->id, now()->addMonths(1), function() {
+            $count = $this->followers()->count();
+            if($this->followers_count != $count) {
+                $this->followers_count = $count;
+                $this->save();
+            }
             return $count;
-        }
+        });
+        return $short ? PrettyNumber::convert($count) : $count;
+    }
+
+    public function statusCount()
+    {
+        return $this->status_count;
     }
 
     public function following()
@@ -130,7 +142,7 @@ class Profile extends Model
     public function avatar()
     {
         return $this->hasOne(Avatar::class)->withDefault([
-            'media_path' => 'public/avatars/default.png',
+            'media_path' => 'public/avatars/default.jpg',
             'change_count' => 0
         ]);
     }
@@ -146,18 +158,6 @@ class Profile extends Model
         });
 
         return $url;
-    }
-
-    public function statusCount()
-    {
-        return Cache::remember('profile:status_count:'.$this->id, now()->addMonths(1), function() {
-            return $this->statuses()
-                ->getQuery()
-                ->whereHas('media')
-                ->whereNull('in_reply_to_id')
-                ->whereNull('reblog_of_id')
-                ->count();
-        });
     }
 
     // deprecated

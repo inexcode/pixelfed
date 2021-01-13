@@ -21,6 +21,7 @@ use App\Util\ActivityPub\Helpers;
 use Illuminate\Support\Str;
 use App\Jobs\LikePipeline\LikePipeline;
 use App\Jobs\FollowPipeline\FollowPipeline;
+use App\Jobs\DeletePipeline\DeleteRemoteProfilePipeline;
 
 use App\Util\ActivityPub\Validator\Accept as AcceptValidator;
 use App\Util\ActivityPub\Validator\Add as AddValidator;
@@ -145,7 +146,7 @@ class Inbox
             return;
         }
         $to = $activity['to'];
-        $cc = $activity['cc'];
+        $cc = isset($activity['cc']) ? $activity['cc'] : [];
         if(count($to) == 1 && 
             count($cc) == 0 && 
             parse_url($to[0], PHP_URL_HOST) == config('pixelfed.domain.app')
@@ -342,6 +343,12 @@ class Inbox
                 'follower_id' => $actor->id,
                 'following_id' => $target->id
             ]);
+
+            Cache::forget('profile:follower_count:'.$target->id);
+            Cache::forget('profile:follower_count:'.$actor->id);
+            Cache::forget('profile:following_count:'.$target->id);
+            Cache::forget('profile:following_count:'.$actor->id);
+
         } else {
             $follower = new Follower;
             $follower->profile_id = $actor->id;
@@ -365,6 +372,10 @@ class Inbox
                 ]
             ];
             Helpers::sendSignedObject($target, $actor->inbox_url, $accept);
+            Cache::forget('profile:follower_count:'.$target->id);
+            Cache::forget('profile:follower_count:'.$actor->id);
+            Cache::forget('profile:following_count:'.$target->id);
+            Cache::forget('profile:following_count:'.$actor->id);
         }
     }
 
@@ -460,15 +471,7 @@ class Inbox
             if(!$profile || $profile->private_key != null) {
                 return;
             }
-            Notification::whereActorId($profile->id)->delete();
-            $profile->avatar()->delete();
-            $profile->followers()->delete();
-            $profile->following()->delete();
-            $profile->likes()->delete();
-            $profile->media()->delete();
-            $profile->hashtags()->delete();
-            $profile->statuses()->delete();
-            $profile->delete();
+            DeleteRemoteProfilePipeline::dispatchNow($profile);
             return;
         } else {
             $type = $this->payload['object']['type'];
@@ -486,16 +489,8 @@ class Inbox
                         if(!$profile || $profile->private_key != null) {
                             return;
                         }
-                        Notification::whereActorId($profile->id)->delete();
-                        $profile->avatar()->delete();
-                        $profile->followers()->delete();
-                        $profile->following()->delete();
-                        $profile->likes()->delete();
-                        $profile->media()->delete();
-                        $profile->hashtags()->delete();
-                        $profile->statuses()->delete();
-                        $profile->delete();
-                    return;
+                        DeleteRemoteProfilePipeline::dispatchNow($profile);
+                        return;
                     break;
 
                 case 'Tombstone':

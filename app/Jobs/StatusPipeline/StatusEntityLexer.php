@@ -11,6 +11,7 @@ use App\StatusHashtag;
 use App\Services\PublicTimelineService;
 use App\Util\Lexer\Autolink;
 use App\Util\Lexer\Extractor;
+use App\Util\Sentiment\Bouncer;
 use DB;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -51,6 +52,17 @@ class StatusEntityLexer implements ShouldQueue
     public function handle()
     {
         $profile = $this->status->profile;
+
+        $count = $profile->statuses()
+        ->getQuery()
+        ->whereIn('type', ['photo', 'photo:album', 'video', 'video:album', 'photo:video:album'])
+        ->whereNull('in_reply_to_id')
+        ->whereNull('reblog_of_id')
+        ->count();
+
+        $profile->status_count = $count;
+        $profile->save();
+
         if($profile->no_autolink == false) {
             $this->parseEntities();
         }
@@ -138,6 +150,10 @@ class StatusEntityLexer implements ShouldQueue
     public function deliver()
     {
         $status = $this->status;
+
+        if(config('pixelfed.bouncer.enabled')) {
+            Bouncer::get($status);
+        }
 
         if($status->uri == null && $status->scope == 'public') {
             PublicTimelineService::add($status->id);

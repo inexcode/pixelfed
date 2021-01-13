@@ -18,6 +18,7 @@ use App\{
     Notification,
     Profile,
     Status,
+    User,
     UserFilter,
 };
 use League\Fractal;
@@ -112,20 +113,24 @@ class ApiV1Controller extends Controller
     {
         abort_if(!$request->user(), 403);
         $id = $request->user()->id;
-
-        //$res = Cache::remember('mastoapi:user:account:id:'.$id, now()->addHours(6), function() use($id) {
-            $profile = Profile::whereNull('status')->whereUserId($id)->firstOrFail();
-            $resource = new Fractal\Resource\Item($profile, new AccountTransformer());
-            $res = $this->fractal->createData($resource)->toArray();
-            $res['source'] = [
-                'privacy' => $profile->is_private ? 'private' : 'public',
-                'sensitive' => $profile->cw ? true : false,
-                'language' => null,
-                'note' => '',
-                'fields' => []
-            ];
-        //     return $res;
-        // });
+        $key = 'user:last_active_at:id:'.$id;
+        $ttl = now()->addMinutes(5);
+        Cache::remember($key, $ttl, function() use($id) {
+            $user = User::findOrFail($id);
+            $user->last_active_at = now();
+            $user->save();
+            return;
+        });
+        $profile = Profile::whereNull('status')->whereUserId($id)->firstOrFail();
+        $resource = new Fractal\Resource\Item($profile, new AccountTransformer());
+        $res = $this->fractal->createData($resource)->toArray();
+        $res['source'] = [
+            'privacy' => $profile->is_private ? 'private' : 'public',
+            'sensitive' => $profile->cw ? true : false,
+            'language' => null,
+            'note' => '',
+            'fields' => []
+        ];
 
         return response()->json($res);
     }
@@ -468,6 +473,10 @@ class ApiV1Controller extends Controller
         Cache::forget('api:local:exp:rec:'.$user->profile_id);
         Cache::forget('user:account:id:'.$target->user_id);
         Cache::forget('user:account:id:'.$user->id);
+        Cache::forget('profile:follower_count:'.$target->id);
+        Cache::forget('profile:follower_count:'.$user->profile_id);
+        Cache::forget('profile:following_count:'.$target->id);
+        Cache::forget('profile:following_count:'.$user->profile_id);
 
         $resource = new Fractal\Resource\Item($target, new RelationshipTransformer());
         $res = $this->fractal->createData($resource)->toArray();
@@ -1311,6 +1320,15 @@ class ApiV1Controller extends Controller
         $min = $request->input('min_id');
         $max = $request->input('max_id');
         $limit = $request->input('limit') ?? 3;
+        $user = $request->user();
+        
+        $key = 'user:last_active_at:id:'.$user->id;
+        $ttl = now()->addMinutes(5);
+        Cache::remember($key, $ttl, function() use($user) {
+            $user->last_active_at = now();
+            $user->save();
+            return;
+        });
 
         $pid = $request->user()->profile_id;
 
@@ -1415,6 +1433,15 @@ class ApiV1Controller extends Controller
         $min = $request->input('min_id');
         $max = $request->input('max_id');
         $limit = $request->input('limit') ?? 3;
+        $user = $request->user();
+        
+        $key = 'user:last_active_at:id:'.$user->id;
+        $ttl = now()->addMinutes(5);
+        Cache::remember($key, $ttl, function() use($user) {
+            $user->last_active_at = now();
+            $user->save();
+            return;
+        });
 
         if($min || $max) {
             $dir = $min ? '>' : '<';
@@ -1442,7 +1469,8 @@ class ApiV1Controller extends Controller
                       ->whereIn('type', ['photo', 'photo:album', 'video', 'video:album'])
                       ->with('profile', 'hashtags', 'mentions')
                       ->where('id', $dir, $id)
-                      ->whereVisibility('public')
+                      ->whereScope('public')
+                      ->where('created_at', '>', now()->subDays(14))
                       ->latest()
                       ->limit($limit)
                       ->get();
@@ -1469,7 +1497,8 @@ class ApiV1Controller extends Controller
                       )->whereNull('uri')
                       ->whereIn('type', ['photo', 'photo:album', 'video', 'video:album'])
                       ->with('profile', 'hashtags', 'mentions')
-                      ->whereVisibility('public')
+                      ->whereScope('public')
+                      ->where('created_at', '>', now()->subDays(14))
                       ->latest()
                       ->simplePaginate($limit);
         }
@@ -1761,6 +1790,7 @@ class ApiV1Controller extends Controller
 
         NewStatusPipeline::dispatch($status);
         Cache::forget('user:account:id:'.$user->id);
+        Cache::forget('_api:statuses:recent_9:'.$user->profile_id);
         Cache::forget('profile:status_count:'.$user->profile_id);
         Cache::forget($user->storageUsedKey());
 
@@ -1783,10 +1813,15 @@ class ApiV1Controller extends Controller
         $status = Status::whereProfileId($request->user()->profile->id)
         ->findOrFail($id);
 
+        $resource = new Fractal\Resource\Item($status, new StatusTransformer());
+        
         Cache::forget('profile:status_count:'.$status->profile_id);
         StatusDelete::dispatch($status);
 
-        return response()->json(['Status successfully deleted.']);
+        $res = $this->fractal->createData($resource)->toArray();
+        $res['text'] = $res['content'];
+        unset($res['content']);
+        return response()->json($res);
     }
 
     /**

@@ -11,8 +11,9 @@ use Auth, Cache, Storage, URL;
 use Carbon\Carbon;
 use App\{
     Avatar,
-    Notification,
+    Like,
     Media,
+    Notification,
     Profile,
     Status
 };
@@ -21,7 +22,8 @@ use App\Transformer\Api\{
     NotificationTransformer,
     MediaTransformer,
     MediaDraftTransformer,
-    StatusTransformer
+    StatusTransformer,
+    StatusStatelessTransformer
 };
 use League\Fractal;
 use App\Util\Media\Filter;
@@ -131,6 +133,7 @@ class BaseApiController extends Controller
         $statuses = $account->statuses()->getQuery(); 
         if($only_media == true) {
             $statuses = $statuses
+                ->whereIn('scope', ['public','unlisted'])
                 ->whereHas('media')
                 ->whereNull('in_reply_to_id')
                 ->whereNull('reblog_of_id');
@@ -151,7 +154,7 @@ class BaseApiController extends Controller
                 ->orderBy('id', 'DESC')
                 ->paginate($limit);
         } else {
-            $statuses = $statuses->whereVisibility('public')->orderBy('id', 'desc')->paginate($limit);
+            $statuses = $statuses->whereScope('public')->orderBy('id', 'desc')->paginate($limit);
         }
         $resource = new Fractal\Resource\Collection($statuses, new StatusTransformer());
         $res = $this->fractal->createData($resource)->toArray();
@@ -319,6 +322,13 @@ class BaseApiController extends Controller
             Auth::logout();
             return redirect('/login');
         }
+        $key = 'user:last_active_at:id:'.$user->id;
+        $ttl = now()->addMinutes(5);
+        Cache::remember($key, $ttl, function() use($user) {
+            $user->last_active_at = now();
+            $user->save();
+            return;
+        });
         $resource = new Fractal\Resource\Item($user->profile, new AccountTransformer());
         $res = $this->fractal->createData($resource)->toArray();
         return response()->json($res);
@@ -336,6 +346,31 @@ class BaseApiController extends Controller
             ->get();
         $resource = new Fractal\Resource\Collection($medias, new MediaDraftTransformer());
         $res = $this->fractal->createData($resource)->toArray();
+        return response()->json($res, 200, [], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
+    }
+
+    public function accountLikes(Request $request)
+    {
+        $user = $request->user();
+        abort_if(!$request->user(), 403);
+
+        $limit = 10;
+        $page = (int) $request->input('page', 1);
+
+        if($page > 20) {
+            return [];
+        }
+
+        $favourites = $user->profile->likes()
+        ->latest()
+        ->simplePaginate($limit)
+        ->pluck('status_id');
+
+        $statuses = Status::find($favourites)->reverse();
+
+        $resource = new Fractal\Resource\Collection($statuses, new StatusStatelessTransformer());
+        $res = $this->fractal->createData($resource)->toArray();
+
         return response()->json($res, 200, [], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
     }
 }

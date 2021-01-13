@@ -6,7 +6,7 @@
 				<button class="btn btn-dark px-4 rounded-pill font-weight-bold shadow" @click="syncNewPosts">Load New Posts</button>
 			</p>
 		</div>
-		<div class="d-none d-md-block col-12 pl-3 pl-md-0 pt-3 pl-0">
+		<div class="d-none col-12 pl-3 pl-md-0 pt-3 pl-0">
 			<div class="d-none d-md-flex justify-content-between align-items-center">
 				<p class="lead text-muted mb-0"><i :class="[scope == 'home' ? 'fas fa-home':'fas fa-stream']"></i> &nbsp; {{scope == 'local' ? 'Public' : 'Home'}} Timeline</p>
 				<p class="mb-0">
@@ -23,7 +23,7 @@
 			</div>
 			<hr>
 		</div>
-		<div :class="[modes.distractionFree ? 'col-md-8 col-lg-8 offset-md-2 px-0 mb-sm-3 timeline order-2 order-md-1':'col-md-8 col-lg-8 px-0 mb-sm-3 timeline order-2 order-md-1']">
+		<div class="col-md-8 col-lg-8 px-0 mb-sm-3 timeline order-2 order-md-1">
 			<div style="margin-top:-2px;">
 				<story-component v-if="config.features.stories"></story-component>
 			</div>
@@ -34,7 +34,7 @@
 					</div>
 				</div>
 				<div :data-status-id="status.id" v-for="(status, index) in feed" :key="`${index}-${status.id}`">
-					<div v-if="index == 0 && showTips && !loading" class="mb-4 card-tips">
+					<div v-if="index == 0 && showTips && !loading" class="my-4 card-tips">
 						<announcements-card v-on:show-tips="showTips = $event"></announcements-card>
 					</div>
 					<div v-if="index == 2 && showSuggestions == true && suggestions.length" class="card mb-sm-4 status-card card-md-rounded-0 shadow-none border">
@@ -95,8 +95,8 @@
 						</div>
 					</div>
 
-					<div class="card mb-sm-4 status-card card-md-rounded-0 shadow-none border">
-						<div v-if="!modes.distractionFree && status" class="card-header d-inline-flex align-items-center bg-white">
+					<div :class="index == 0 ? 'card mb-sm-4 status-card card-md-rounded-0 shadow-none border mt-md-4' : 'card mb-sm-4 status-card card-md-rounded-0 shadow-none border'">
+						<div v-if="status" class="card-header d-inline-flex align-items-center bg-white">
 							<!-- <img v-bind:src="status.account.avatar" width="38px" height="38px" class="cursor-pointer" style="border-radius: 38px;" @click="profileUrl(status)" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'"> -->
 							<!-- <div v-if="hasStory" class="has-story has-story-sm cursor-pointer shadow-sm" @click="profileUrl(status)">
 								<img class="rounded-circle box-shadow" :src="status.account.avatar" width="32px" height="32px" onerror="this.onerror=null;this.src='/storage/avatars/default.png?v=2'">
@@ -162,7 +162,7 @@
 						</div>
 
 						<div class="card-body">
-							<div v-if="!modes.distractionFree" class="reactions my-1 pb-2">
+							<div class="reactions my-1 pb-2">
 								<h3 v-if="status.favourited" class="fas fa-heart text-danger pr-3 m-0 cursor-pointer" title="Like" v-on:click="likeStatus(status, $event);"></h3>
 								<h3 v-else class="far fa-heart pr-3 m-0 like-btn text-lighter cursor-pointer" title="Like" v-on:click="likeStatus(status, $event);"></h3>
 								<h3 v-if="!status.comments_disabled" class="far fa-comment text-lighter pr-3 m-0 cursor-pointer" title="Comment" v-on:click="commentFocus(status, $event)"></h3>
@@ -180,7 +180,7 @@
 								</span>
 							</div>
 
-							<div class="likes font-weight-bold" v-if="expLc(status) == true && !modes.distractionFree">
+							<div class="likes font-weight-bold" v-if="expLc(status) == true">
 								<span class="like-count">{{status.favourites_count}}</span> {{status.favourites_count == 1 ? 'like' : 'likes'}}
 							</div>
 							<div class="caption">
@@ -212,9 +212,6 @@
 								<p class="small text-uppercase mb-0">
 									<a :href="statusUrl(status)" class="text-muted">
 										<timeago :datetime="status.created_at" :auto-update="60" :converter-options="{includeSeconds:true}" :title="timestampFormat(status.created_at)" v-b-tooltip.hover.bottom></timeago>
-									</a>
-									<a v-if="modes.distractionFree" class="float-right" :href="status.url">
-										<i class="fas fa-ellipsis-h fa-lg text-muted"></i>
 									</a>
 								</p>
 							</div>
@@ -257,7 +254,7 @@
 			</div>
 		</div>
 
-		<div v-if="!modes.distractionFree" class="col-md-4 col-lg-4 my-4 order-1 order-md-2 d-none d-md-block">
+		<div class="col-md-4 col-lg-4 my-4 order-1 order-md-2 d-none d-md-block">
 			<div>
 
 				<!-- <div class="mb-4">
@@ -345,7 +342,7 @@
 				<footer>
 					<div class="container pb-5">
 						<p class="mb-0 text-uppercase font-weight-bold text-muted small">
-							<a href="/site/about" class="text-dark pr-2">About Us</a>
+							<a href="/site/about" class="text-dark pr-2">About</a>
 							<a href="/site/help" class="text-dark pr-2">Help</a>
 							<a href="/site/language" class="text-dark pr-2">Language</a>
 							<a href="/discover/profiles" class="text-dark pr-2">Profiles</a>
@@ -438,11 +435,11 @@
 	size="sm"
 	body-class="list-group-flush p-0 rounded">
 	<div class="list-group text-center">
-		<div v-if="ctxMenuStatus && ctxMenuStatus.account.id != profile.id" class="list-group-item rounded cursor-pointer font-weight-bold text-danger" @click="ctxMenuReportPost()">Report inappropriate</div>
+		<div v-if="ctxMenuStatus && ctxMenuStatus.account.id != profile.id" class="list-group-item rounded cursor-pointer font-weight-bold text-danger" @click="ctxMenuReportPost()">Report</div>
 		<div v-if="ctxMenuStatus && ctxMenuStatus.account.id != profile.id && ctxMenuRelationship && ctxMenuRelationship.following" class="list-group-item rounded cursor-pointer font-weight-bold text-danger" @click="ctxMenuUnfollow()">Unfollow</div>
 		<div v-if="ctxMenuStatus && ctxMenuStatus.account.id != profile.id && ctxMenuRelationship && !ctxMenuRelationship.following" class="list-group-item rounded cursor-pointer font-weight-bold text-primary" @click="ctxMenuFollow()">Follow</div>
 		<div class="list-group-item rounded cursor-pointer" @click="ctxMenuGoToPost()">Go to post</div>
-		<div v-if="ctxMenuStatus && ctxMenuStatus.local == true" class="list-group-item rounded cursor-pointer" @click="ctxMenuEmbed()">Embed</div>
+		<div v-if="ctxMenuStatus && ctxMenuStatus.local == true && !ctxMenuStatus.in_reply_to_id" class="list-group-item rounded cursor-pointer" @click="ctxMenuEmbed()">Embed</div>
 		<!-- <div class="list-group-item rounded cursor-pointer" @click="ctxMenuShare()">Share</div> -->
 		<div class="list-group-item rounded cursor-pointer" @click="ctxMenuCopyLink()">Copy Link</div>
 		<div v-if="profile && profile.is_admin == true" class="list-group-item rounded cursor-pointer" @click="ctxModMenuShow()">Moderation Tools</div>
@@ -558,6 +555,10 @@
 				</span>
 			</div>
 			<div class="d-flex align-items-center">
+				<div class="custom-control custom-switch mr-3">
+					<input type="checkbox" class="custom-control-input" id="replyModalCWSwitch" v-model="replyNsfw">
+					<label :class="[replyNsfw ? 'custom-control-label font-weight-bold text-dark':'custom-control-label text-lighter']" for="replyModalCWSwitch">Mark as NSFW</label>
+				</div>
 				<!-- <select class="custom-select custom-select-sm my-0 mr-2">
 					<option value="public" selected="">Public</option>
 					<option value="unlisted">Unlisted</option>
@@ -675,6 +676,7 @@
 				showReadMore: true,
 				replyStatus: {},
 				replyText: '',
+				replyNsfw: false,
 				emoji: window.App.util.emoji,
 				showHashtagPosts: false,
 				hashtagPosts: [],
@@ -697,6 +699,7 @@
 				mpPoller: null
 			}
 		},
+
 		watch: {
 			ctxEmbedShowCaption: function (n,o) {
 				if(n == true) {
@@ -721,6 +724,7 @@
 				this.ctxEmbedPayload = window.App.util.embed.post(this.ctxMenuStatus.url, this.ctxEmbedShowCaption, this.ctxEmbedShowLikes, mode);
 			}
 		},
+
 		beforeMount() {
 			this.fetchProfile();
 			this.fetchTimelineApi();
@@ -746,12 +750,6 @@
 				this.showReadMore = false;
 			} else {
 				this.showReadMore = true;
-			}
-
-			if(localStorage.getItem('pf_metro_ui.exp.df') == 'true') {
-				this.modes.distractionFree = true;
-			} else {
-				this.modes.distractionFree = false;
 			}
 
 			if(localStorage.getItem('metro-tips') == 'false') {
@@ -1072,7 +1070,8 @@
 				}
 				axios.post('/i/comment', {
 					item: id,
-					comment: comment
+					comment: comment,
+					sensitive: this.replyNsfw
 				}).then(res => {
 					this.replyText = '';
 					this.replies.unshift(res.data.entity);
@@ -1663,6 +1662,7 @@
 				}, 500);
 			},
 		},
+
 		beforeDestroy () {
 			clearInterval(this.mpInterval);
 		},

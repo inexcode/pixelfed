@@ -6,9 +6,11 @@ use App\Jobs\ImageOptimizePipeline\ImageOptimize;
 use App\Jobs\StatusPipeline\NewStatusPipeline;
 use App\Jobs\StatusPipeline\StatusDelete;
 use App\Jobs\SharePipeline\SharePipeline;
+use App\AccountInterstitial;
 use App\Media;
 use App\Profile;
 use App\Status;
+use App\StatusView;
 use App\Transformer\ActivityPub\StatusTransformer;
 use App\Transformer\ActivityPub\Verb\Note;
 use App\User;
@@ -31,7 +33,7 @@ class StatusController extends Controller
 
         $status = Status::whereProfileId($user->id)
                 ->whereNull('reblog_of_id')
-                ->whereNotIn('visibility',['draft','direct'])
+                ->whereIn('scope', ['public','unlisted', 'private'])
                 ->findOrFail($id);
 
         if($status->uri || $status->url) {
@@ -58,6 +60,14 @@ class StatusController extends Controller
             }
         }
 
+        if($request->user() && $request->user()->profile_id != $status->profile_id) {
+            StatusView::firstOrCreate([
+                'status_id' => $status->id,
+                'status_profile_id' => $status->profile_id,
+                'profile_id' => $request->user()->profile_id
+            ]);
+        }
+
         if ($request->wantsJson() && config('federation.activitypub.enabled')) {
             return $this->showActivityPub($request, $status);
         }
@@ -73,7 +83,10 @@ class StatusController extends Controller
             return redirect('/login?next='.urlencode('/' . $request->path()));
         }
         $id = HashidService::decode($id);
-        $status = Status::findOrFail($id);
+        $status = Status::find($id);
+        if(!$status) {
+            return redirect('/404');
+        }
         return redirect($status->url());
     }
 
@@ -162,14 +175,51 @@ class StatusController extends Controller
 
         $status = Status::findOrFail($request->input('item'));
 
-        if ($status->profile_id === Auth::user()->profile->id || Auth::user()->is_admin == true) {
+        $user = Auth::user();
+
+        if($status->profile_id != $user->profile->id && 
+            $user->is_admin == true &&
+            $status->uri == null
+        ) {
+            $media = $status->media;
+
+            $ai = new AccountInterstitial;
+            $ai->user_id = $status->profile->user_id;
+            $ai->type = 'post.removed';
+            $ai->view = 'account.moderation.post.removed';
+            $ai->item_type = 'App\Status';
+            $ai->item_id = $status->id;
+            $ai->has_media = (bool) $media->count();
+            $ai->blurhash = $media->count() ? $media->first()->blurhash : null;
+            $ai->meta = json_encode([
+                'caption' => $status->caption,
+                'created_at' => $status->created_at,
+                'type' => $status->type,
+                'url' => $status->url(),
+                'is_nsfw' => $status->is_nsfw,
+                'scope' => $status->scope,
+                'reblog' => $status->reblog_of_id,
+                'likes_count' => $status->likes_count,
+                'reblogs_count' => $status->reblogs_count,
+            ]);
+            $ai->save();
+
+            $u = $status->profile->user;
+            $u->has_interstitial = true;
+            $u->save();
+        }
+
+        Cache::forget('_api:statuses:recent_9:' . $status->profile_id);
+        Cache::forget('profile:status_count:' . $status->profile_id);
+        if ($status->profile_id == $user->profile->id || $user->is_admin == true) {
             Cache::forget('profile:status_count:'.$status->profile_id);
             StatusDelete::dispatch($status);
         }
+
         if($request->wantsJson()) {
             return response()->json(['Status successfully deleted.']);
         } else {
-            return redirect(Auth::user()->url());
+            return redirect($user->url());
         }
     }
 

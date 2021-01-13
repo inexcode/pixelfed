@@ -239,6 +239,7 @@ return [
         ]
     ],
 
+    'max_collection_length' => (int) env('PF_MAX_COLLECTION_LENGTH', 18),
 
     'media_types' => env('MEDIA_TYPES', 'image/jpeg,image/png,image/gif'),
 
@@ -259,4 +260,8 @@ return [
     'admin' => [
         'env_editor' => env('ADMIN_ENV_EDITOR', false)
     ],
+
+    'bouncer' => [
+        'enabled' => env('PF_BOUNCER_ENABLED', false),
+    ]
 ];
