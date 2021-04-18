@@ -10,6 +10,7 @@ return [
 	],
 
 	'discover' => [
+		'public' => env('INSTANCE_DISCOVER_PUBLIC', false),
 		'loops' => [
 			'enabled' => env('EXP_LOOPS', false),
 		],
@@ -36,6 +37,7 @@ return [
 			'body' => env('PAGE_503_BODY', 'Our service is in maintenance mode, please try again later.')
 		]
 	],
+
 	'username' => [
 		'banned' => env('BANNED_USERNAMES'),
 		'remote' => [
@@ -61,5 +63,13 @@ return [
 			'enabled' => env('OAUTH_PAT_ENABLED', false),
 			'id' 	  => env('OAUTH_PAT_ID'),
 		]
-	]
+	],
+
+	'label' => [
+		'covid' => [
+			'enabled' => env('ENABLE_COVID_LABEL', true),
+			'url' => env('COVID_LABEL_URL', 'https://www.who.int/emergencies/diseases/novel-coronavirus-2019/advice-for-public'),
+			'org' => env('COVID_LABEL_ORG', 'visit the WHO website')
+		]
+	],
 ];

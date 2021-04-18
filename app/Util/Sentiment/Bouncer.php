@@ -15,12 +15,68 @@ class Bouncer {
 			return;
 		}
 
-		$recentKey = 'pf:bouncer:recent_by_pid:' . $status->profile_id;
-		$recentTtl = now()->addMinutes(5);
-		$recent = Cache::remember($recentKey, $recentTtl, function() use($status) {
-			return $status->profile->created_at->gt(now()->subMonths(2)) || $status->profile->statuses()->count() == 0;
+		if($status->profile->user->is_admin == true) {
+			return;
+		}
+
+		$exemptionKey = 'pf:bouncer_v0:exemption_by_pid:' . $status->profile_id;
+		$exemptionTtl = now()->addDays(12);
+
+		if( $status->in_reply_to_id != null && 
+			$status->in_reply_to_profile_id == $status->profile_id
+		) {
+			return;
+		}
+
+		$exemption = Cache::remember($exemptionKey, $exemptionTtl, function() use($status) {
+			$uid = $status->profile->user_id;
+			$ids = AccountInterstitial::whereUserId($uid)
+				->whereType('post.autospam')
+				->whereItemType('App\Status')
+				->whereNotNull('appeal_handled_at')
+				->latest()
+				->take(5)
+				->pluck('item_id');
+
+			if($ids->count() == 0) {
+				return false;
+			}
+
+			$count = Status::select('id', 'scope')
+				->whereScope('public')
+				->find($ids)
+				->count();
+
+			return $count >= 1 ? true : false;
 		});
 
+		if($exemption == true) {
+			return;
+		}
+
+		if( $status->profile->created_at->gt(now()->subMonths(6)) &&
+			$status->profile->status_count < 2 &&
+			$status->profile->bio &&
+			$status->profile->website
+		) {
+			return (new self)->handle($status);
+		}
+
+		$recentKey = 'pf:bouncer_v0:recent_by_pid:' . $status->profile_id;
+		$recentTtl = now()->addHours(28);
+
+		$recent = Cache::remember($recentKey, $recentTtl, function() use($status) {
+			return $status
+				->profile
+				->created_at
+				->gt(now()->subMonths(6)) || 
+			$status
+				->profile
+				->statuses()
+				->whereScope('public')
+				->count() == 0;
+		});
+		
 		if(!$recent) {
 			return;
 		}
@@ -29,11 +85,16 @@ class Bouncer {
 			return;
 		}
 
-		if(!Str::contains($status->caption, ['https://', 'http://', 'hxxps://', 'hxxp://', 'www.', '.com', '.net', '.org'])) {
-			return;
-		}
-
-		if($status->profile->user->is_admin == true) {
+		if(!Str::contains($status->caption, [
+			'https://', 
+			'http://', 
+			'hxxps://', 
+			'hxxp://', 
+			'www.', 
+			'.com', 
+			'.net', 
+			'.org'
+		])) {
 			return;
 		}
 
@@ -74,6 +135,8 @@ class Bouncer {
 		$status->is_nsfw = true;
 		$status->save();
 
+		Cache::forget('pf:bouncer_v0:exemption_by_pid:' . $status->profile_id);
+		Cache::forget('pf:bouncer_v0:recent_by_pid:' . $status->profile_id);
 	}
 
 }

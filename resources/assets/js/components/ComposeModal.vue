@@ -12,6 +12,7 @@
 				</div>
 			</div>
 		</div>
+
 		<div v-else-if="page == 'cameraRoll'">
 			<div class="card status-card card-md-rounded-0" style="display:flex;">
 				<div class="card-header d-inline-flex align-items-center justify-content-between bg-white">
@@ -42,6 +43,7 @@
 				</div>
 			</div>
 		</div>
+
 		<div v-else>
 			<div class="card status-card card-md-rounded-0 w-100 h-100" style="display:flex;">
 				<div class="card-header d-inline-flex align-items-center justify-content-between bg-white">
@@ -86,10 +88,59 @@
 						<span v-else>
 							<a v-if="!pageLoading && (page > 1 && page <= 2) || (page == 1 && ids.length != 0) || page == 'cropPhoto'" class="font-weight-bold text-decoration-none" href="#" @click.prevent="nextPage">Next</a>
 							<a v-if="!pageLoading && page == 3" class="font-weight-bold text-decoration-none" href="#" @click.prevent="compose()">Post</a>
+							<a v-if="!pageLoading && page == 'addText'" class="font-weight-bold text-decoration-none" href="#" @click.prevent="composeTextPost()">Post</a>
 						</span>
 					</div>
 				</div>
 				<div class="card-body p-0 border-top">
+					<div v-if="page == 'licensePicker'" class="w-100 h-100" style="min-height: 280px;">
+						<div class="list-group list-group-flush">
+							<div
+								v-for="(item, index) in availableLicenses"
+								class="list-group-item cursor-pointer" 
+								:class="{ 
+									'text-primary': licenseIndex === index,  
+									'font-weight-bold': licenseIndex === index
+								}" 
+								@click="toggleLicense(index)">
+								{{item.name}}
+							</div>
+						</div>
+					</div>
+					<div v-if="page == 'textOptions'" class="w-100 h-100" style="min-height: 280px;">
+					</div>
+					<div v-if="page == 'addText'" class="w-100 h-100" style="min-height: 280px;">
+						<div class="mt-2">
+							<div class="media px-3">
+								<div class="media-body">
+									<div class="form-group">
+										<label class="font-weight-bold text-muted small d-none">Body</label>
+										<textarea class="form-control border-0 rounded-0 no-focus" rows="7" placeholder="What's happening?" style="font-size:18px;resize:none" v-model="composeText" v-on:keyup="composeTextLength = composeText.length"></textarea>
+										<div class="border-bottom"></div>
+										<p class="help-text small text-right text-muted mb-0 font-weight-bold">{{composeTextLength}}/{{config.uploader.max_caption_length}}</p>
+										<p class="mb-0 mt-2">
+											<a class="btn btn-primary rounded-pill mr-2" href="#" style="height: 37px;" @click.prevent="showTextOptions()">
+												<i class="fas fa-palette px-3 text-white"></i>
+											</a>
+											<!-- <a class="btn btn-outline-lighter rounded-pill ml-3" href="#" @click.prevent="showLocationCard()">
+												<i class="fas fa-map-marker-alt px-3"></i>
+											</a>
+											<a class="btn btn-outline-lighter rounded-pill mx-3" href="#" @click.prevent="showTagCard()">
+												<i class="fas fa-user-plus px-3"></i>
+											</a> -->
+											<a class="btn rounded-pill mx-3 d-inline-flex align-items-center" href="#" :class="[nsfw ? 'btn-danger' : 'btn-outline-lighter']" style="height: 37px;" @click.prevent="nsfw = !nsfw" title="Mark as sensitive/not safe for work">
+												<i class="far fa-flag px-3"></i> <span class="text-muted small font-weight-bold"></span>
+											</a>
+											<a class="btn btn-outline-lighter rounded-pill d-inline-flex align-items-center" href="#" style="height: 37px;" @click.prevent="showVisibilityCard()">
+												<i class="fas fa-eye mr-2"></i> <span class="text-muted small font-weight-bold">{{visibilityTag}}</span>
+											</a>
+										</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					<div v-if="page == 1" class="w-100 h-100 d-flex justify-content-center align-items-center" style="min-height: 400px;">
 						<div class="text-center">
 							<div v-if="media.length == 0" class="card mx-md-5 my-md-3 shadow-none border compose-action text-decoration-none text-dark">
@@ -107,6 +158,26 @@
 									</div>
 								</div>
 							</div>
+
+							<div v-if="config.ab.top == true && media.length == 0" class="card mx-md-5 my-md-3 shadow-none border compose-action text-decoration-none text-dark">
+								<div @click.prevent="addText" class="card-body">
+									<div class="media">
+										<div class="mr-3 align-items-center justify-content-center" style="display:inline-flex;width:40px;height:40px;border-radius: 100%;border: 2px solid #008DF5">
+											<i class="far fa-edit text-primary fa-lg"></i>
+										</div>	
+										<div class="media-body text-left">
+											<p class="mb-0">
+												<span class="h5 mt-0 font-weight-bold text-primary">New Text Post</span>
+												<sup class="float-right mt-2">
+													<span class="btn btn-outline-lighter p-1 btn-sm font-weight-bold py-0" style="font-size:10px;line-height: 0.6">BETA</span>
+												</sup>
+											</p>
+											<p class="mb-0 text-muted">Share a text only post</p>
+										</div>
+									</div>
+								</div>
+							</div>
+
 							<a v-if="config.features.stories == true" class="card mx-md-5 my-md-3 shadow-none border compose-action text-decoration-none text-dark" href="/i/stories/new">
 								<div class="card-body">
 									<div class="media">
@@ -239,7 +310,9 @@
 								<div class="media-body">
 									<div class="form-group">
 										<label class="font-weight-bold text-muted small d-none">Caption</label>
-										<textarea class="form-control border-0 rounded-0 no-focus" rows="3" placeholder="Write a caption..." style="" v-model="composeText" v-on:keyup="composeTextLength = composeText.length"></textarea>
+										<vue-tribute :options="tributeSettings">
+											<textarea class="form-control border-0 rounded-0 no-focus" rows="3" placeholder="Write a caption..." style="" v-model="composeText" v-on:keyup="composeTextLength = composeText.length"></textarea>
+										</vue-tribute>
 										<p class="help-text small text-right text-muted mb-0">{{composeTextLength}}/{{config.uploader.max_caption_length}}</p>
 									</div>
 								</div>
@@ -257,7 +330,10 @@
 							</div>
 						</div>
 						<div class="border-bottom">
-							<p class="px-4 mb-0 py-2 cursor-pointer" @click="showTagCard()">Tag people <span class="ml-2 badge badge-primary">NEW</span></p>
+							<p class="px-4 mb-0 py-2 cursor-pointer" @click="showTagCard()">Tag people</p>
+						</div>
+						<div class="border-bottom">
+							<p class="px-4 mb-0 py-2 cursor-pointer" @click="showLicenseCard()">Add license <span class="ml-2 badge badge-primary">NEW</span></p>
 						</div>
 						<div class="border-bottom">
 							<p class="px-4 mb-0 py-2 cursor-pointer" @click="showLocationCard()" v-if="!place">Add location</p>
@@ -349,6 +425,19 @@
 
 					<div v-if="page == 'advancedSettings'" class="w-100 h-100">
 						<div class="list-group list-group-flush">
+							<!-- <div class="d-none list-group-item d-flex justify-content-between">
+								<div>
+									<div class="text-dark ">Optimize Media</div>
+									<p v-if="mediaCropped" class="text-muted small mb-0">Media was cropped or filtered, it must be optimized.</p>
+									<p v-else class="text-muted small mb-0">Compress media for smaller file size.</p>
+								</div>
+								<div>
+									<div class="custom-control custom-switch" style="z-index: 9999;">
+										<input type="checkbox" class="custom-control-input" id="asoptimizemedia" v-model="optimizeMedia" :disabled="mediaCropped">
+										<label class="custom-control-label" for="asoptimizemedia"></label>
+									</div>
+								</div>
+							</div> -->
 							<div class="list-group-item d-flex justify-content-between">
 								<div>
 									<div class="text-dark ">Turn off commenting</div>
@@ -410,9 +499,26 @@
 
 					<div v-if="page == 'visibility'" class="w-100 h-100">
 						<div class="list-group list-group-flush">
-							<div :class="'list-group-item lead cursor-pointer ' + [visibility == 'public'?'text-primary':'']" @click="toggleVisibility('public')">Public</div>
-							<div :class="'list-group-item lead cursor-pointer ' + [visibility == 'unlisted'?'text-primary':'']" @click="toggleVisibility('unlisted')">Unlisted</div>
-							<div :class="'list-group-item lead cursor-pointer ' + [visibility == 'private'?'text-primary':'']" @click="toggleVisibility('private')">Followers Only</div>
+							<div
+								v-if="!profile.locked"
+								class="list-group-item lead cursor-pointer" 
+								:class="{ 'text-primary': visibility == 'public' }" 
+								@click="toggleVisibility('public')">
+								Public
+							</div>
+							<div
+								v-if="!profile.locked"
+								class="list-group-item lead cursor-pointer" 
+								:class="{ 'text-primary': visibility == 'unlisted' }" 
+								@click="toggleVisibility('unlisted')">
+								Unlisted
+							</div>
+							<div 
+								class="list-group-item lead cursor-pointer" 
+								:class="{ 'text-primary': visibility == 'private' }"  
+								@click="toggleVisibility('private')">
+								Followers Only
+							</div>
 						</div>
 					</div>
 
@@ -477,11 +583,19 @@
 								</div>
 								<div class="form-group">
 									<label class="font-weight-bold text-muted small">License</label>
-									<input type="text" class="form-control" v-model="media[carouselCursor].license" placeholder="All Rights Reserved (Default license)">
-									<p class="help-text small text-muted mb-0 d-flex justify-content-between">
+									<!-- <input type="text" class="form-control" v-model="media[carouselCursor].license" placeholder="All Rights Reserved (Default license)"> -->
+									<!-- <p class="help-text small text-muted mb-0 d-flex justify-content-between">
 										<span></span>
 										<span>{{media[carouselCursor].license ? media[carouselCursor].license.length : 0}}/140</span>
-									</p>
+									</p> -->
+									<select class="form-control" v-model="licenseIndex">
+										<option 
+											v-for="(item, index) in availableLicenses"
+											:value="index"
+											:selected="index === licenseIndex">
+											{{item.name}}
+										</option>
+									</select>
 								</div>
 							</div>
 						</div>
@@ -561,18 +675,21 @@ import VueCropper from 'vue-cropperjs';
 import 'cropperjs/dist/cropper.css';
 import Autocomplete from '@trevoreyre/autocomplete-vue'
 import '@trevoreyre/autocomplete-vue/dist/style.css'
+import VueTribute from 'vue-tribute'
 
 export default {
+
 	components: { 
 		VueCropper,
-		Autocomplete 
+		Autocomplete,
+		VueTribute
 	},
 
 	data() {
 		return {
 			config: window.App.config,
 			pageLoading: false,
-			profile: {},
+			profile: window._sharedData.curUser,
 			composeText: '',
 			composeTextLength: 0,
 			nsfw: false,
@@ -591,6 +708,8 @@ export default {
 			nsfw: false,
 			place: false,
 			commentsDisabled: false,
+			optimizeMedia: true,
+			mediaCropped: false,
 			pageTitle: '',
 
 			cropper: {
@@ -613,11 +732,85 @@ export default {
 				'addToStory',
 				'editMedia',
 				'cameraRoll',
-				'tagPeopleHelp'
+				'tagPeopleHelp',
+				'textOptions',
+				'licensePicker'
 			],
 			cameraRollMedia: [],
 			taggedUsernames: [],
-			taggedPeopleSearch: null
+			taggedPeopleSearch: null,
+			textMode: false,
+			tributeSettings: {
+				collection: [
+					{
+						trigger: '@',
+						menuShowMinLength: 2,
+						values: (function (text, cb) {
+							let url = '/api/compose/v0/search/mention';
+							axios.get(url, { params: { q: text }})
+							.then(res => {
+								cb(res.data);
+							})
+							.catch(err => {
+								console.log(err);
+							})
+						})
+					},
+					{
+						trigger: '#',
+						menuShowMinLength: 2,
+						values: (function (text, cb) {
+							let url = '/api/compose/v0/search/hashtag';
+							axios.get(url, { params: { q: text }})
+							.then(res => {
+								cb(res.data);
+							})
+							.catch(err => {
+								console.log(err);
+							})
+						})
+					}
+				]
+			},
+			availableLicenses: [
+				{
+					id: 1,
+					name: "All Rights Reserved"
+				},
+				{
+					id: 5,
+					name: "Public Domain Work"
+				},
+				{
+					id: 6,
+					name: "Public Domain Dedication (CC0)"
+				},
+				{
+					id: 11,
+					name: "Attribution"
+				},
+				{
+					id: 12,
+					name: "Attribution-ShareAlike"
+				},
+				{
+					id: 13,
+					name: "Attribution-NonCommercial"
+				},
+				{
+					id: 14,
+					name: "Attribution-NonCommercial-ShareAlike"
+				},
+				{
+					id: 15,
+					name: "Attribution-NoDerivs"
+				},
+				{
+					id: 16,
+					name: "Attribution-NonCommercial-NoDerivs"
+				}
+			],
+			licenseIndex: 0
 		}
 	},
 
@@ -635,20 +828,19 @@ export default {
 
 	methods: {
 		fetchProfile() {
-			let self = this;
-			if(window._sharedData.curUser) {
-				self.profile = window._sharedData.curUser;
-				if(self.profile.locked == true) {
-						self.visibility = 'private';
-						self.visibilityTag = 'Followers Only';
+			if(window._sharedData.curUser.id) {
+				this.profile = window._sharedData.curUser;
+				if(this.profile.locked == true) {
+					this.visibility = 'private';
+					this.visibilityTag = 'Followers Only';
 				}
 			} else {
 				axios.get('/api/pixelfed/v1/accounts/verify_credentials').then(res => {
-					self.profile = res.data;
-					window.pixelfed.currentUser = res.data;
-					if(res.data.locked == true) {
-						self.visibility = 'private';
-						self.visibilityTag = 'Followers Only';
+					window._sharedData.currentUser = res.data;
+					this.profile = res.data;
+					if(this.profile.locked == true) {
+						this.visibility = 'private';
+						this.visibilityTag = 'Followers Only';
 					}
 				}).catch(err => {
 				});
@@ -662,6 +854,12 @@ export default {
 			fi.trigger('click');
 			el.blur();
 			el.removeAttr('disabled');
+		},
+
+		addText(event) {
+			this.pageTitle = 'New Text Post';
+			this.page = 'addText';
+			this.textMode = true;
 		},
 
 		mediaWatcher() {
@@ -705,7 +903,7 @@ export default {
 					}
 				};
 
-				axios.post('/api/pixelfed/v1/media', form, xhrConfig)
+				axios.post('/api/compose/v0/media/upload', form, xhrConfig)
 				.then(function(e) {
 					self.uploadProgress = 100;
 					self.ids.push(e.data.id);
@@ -720,6 +918,13 @@ export default {
 							self.uploading = false;
 							io.value = null;
 							swal('Banned Content', 'This content has been banned and cannot be uploaded.', 'error');
+							self.page = 2;
+						break;
+
+						case 429:
+							self.uploading = false;
+							io.value = null;
+							swal('Limit Reached', 'You can upload up to 250 photos or videos per day and you\'ve reached that limit. Please try again later.', 'error');
 							self.page = 2;
 						break;
 
@@ -747,7 +952,7 @@ export default {
 			}
 			let id = this.media[this.carouselCursor].id;
 			
-			axios.delete('/api/pixelfed/v1/media', {
+			axios.delete('/api/compose/v0/media/delete', {
 				params: {
 					id: id
 				}
@@ -794,9 +999,52 @@ export default {
 						cw: this.nsfw,
 						comments_disabled: this.commentsDisabled,
 						place: this.place,
-						tagged: this.taggedUsernames
+						tagged: this.taggedUsernames,
+						optimize_media: this.optimizeMedia,
+						license: this.availableLicenses[this.licenseIndex].id
 					};
-					axios.post('/api/local/status/compose', data)
+					axios.post('/api/compose/v0/publish', data)
+					.then(res => {
+						let data = res.data;
+						window.location.href = data;
+					}).catch(err => {
+						let msg = err.response.data.message ? err.response.data.message : 'An unexpected error occured.'
+						swal('Oops, something went wrong!', msg, 'error');
+					});
+					return;
+				break;
+
+				case 'delete' :
+					this.ids = [];
+					this.media = [];
+					this.carouselCursor = 0;
+					this.composeText = '';
+					this.composeTextLength = 0;
+					$('#composeModal').modal('hide');
+					return;
+				break;
+			}
+		},
+
+		composeTextPost() {
+			let state = this.composeState;
+
+			if(this.composeText.length > this.config.uploader.max_caption_length) {
+				swal('Error', 'Caption is too long', 'error');
+				return;
+			}
+
+			switch(state) {
+				case 'publish' :
+					let data = {
+						caption: this.composeText,
+						visibility: this.visibility,
+						cw: this.nsfw,
+						comments_disabled: this.commentsDisabled,
+						place: this.place,
+						tagged: this.taggedUsernames,
+					};
+					axios.post('/api/compose/v0/publish/text', data)
 					.then(res => {
 						let data = res.data;
 						window.location.href = data;
@@ -828,6 +1076,14 @@ export default {
 			this.pageTitle = '';
 			
 			switch(this.page) {
+				case 'addText':
+					this.page = 1;
+				break;
+
+				case 'textOptions':
+					this.page = 'addText';
+				break;
+
 				case 'cropPhoto':
 				case 'editMedia':
 					this.page = 2;
@@ -837,8 +1093,14 @@ export default {
 					this.showTagCard();
 				break;
 
+				case 'licensePicker':
+					this.page = 3;
+				break;
+
 				default:
-					this.namedPages.indexOf(this.page) != -1 ? this.page = 3 : this.page--;
+					this.namedPages.indexOf(this.page) != -1 ? 
+					this.page = (this.textMode ? 'addText' : 3) : 
+					(this.textMode ? 'addText' : this.page--);
 				break;
 			}
 		},
@@ -860,10 +1122,11 @@ export default {
 							imageSmoothingEnabled: false,
 							imageSmoothingQuality: 'high',
 						}).toBlob(function(blob) {
+						self.mediaCropped = true;
 						let data = new FormData();
 						data.append('file', blob);
-						let url = '/api/local/compose/media/update/' + self.ids[self.carouselCursor];
-
+						data.append('id', self.ids[self.carouselCursor]);
+						let url = '/api/compose/v0/media/update';
 						axios.post(url, data).then(res => {
 							self.media[self.carouselCursor].url = res.data.url;
 							self.pageLoading = false;
@@ -921,7 +1184,7 @@ export default {
 		locationSearch(input) {
 			if (input.length < 1) { return []; };
 			let results = [];
-			return axios.get('/api/local/compose/location/search', {
+			return axios.get('/api/compose/v0/search/location', {
 				params: {
 					q: input
 				}
@@ -936,8 +1199,8 @@ export default {
 
 		onSubmitLocation(result) {
 			this.place = result;
-			this.pageTitle = '';
-			this.page = 3;
+			this.pageTitle = this.textMode ? 'New Text Post' : '';
+			this.page = (this.textMode ? 'addText' : 3);
 			return;
 		},
 
@@ -965,7 +1228,7 @@ export default {
 			this.visibility = state;
 			this.visibilityTag = tags[state];
 			this.pageTitle = '';
-			this.page = 3;
+			this.page = this.textMode ? 'addText' : 3;
 		},
 
 		showMediaDescriptionsCard() {
@@ -999,7 +1262,7 @@ export default {
 			// this is where the magic happens
 			var ua = navigator.userAgent.toLowerCase();
 			if(ua.indexOf('firefox') == -1 && ua.indexOf('chrome') == -1) {
-			 	// swal('Oops!', 'Your browser does not support the filter feature. Please use Chrome or Firefox if you want to apply a filter.', 'error');
+			 	swal('Oops!', 'Your browser does not support the filter feature.', 'error');
 			 	return;
 			}
 
@@ -1024,7 +1287,8 @@ export default {
 						canvas.toBlob(function(blob) {
 							data = new FormData();
 							data.append('file', blob);
-							axios.post('/api/local/compose/media/update/'+media.id, data).then(res => {
+							data.append('id', media.id);
+							axios.post('/api/compose/v0/media/update', data).then(res => {
 							}).catch(err => {
 							});
 						});
@@ -1039,12 +1303,14 @@ export default {
 			if (input.length < 1) { return []; };
 			let self = this;
 			let results = [];
-			return axios.get('/api/local/compose/tag/search', {
+			return axios.get('/api/compose/v0/search/tag', {
 				params: {
 					q: input
 				}
 			}).then(res => {
-				//return res.data;
+				if(!res.data.length) {
+					return;
+				}
 				return res.data.filter(d => {
 					return self.taggedUsernames.filter(r => {
 						return r.id == d.id;
@@ -1070,7 +1336,23 @@ export default {
 
 		untagUsername(index) {
 			this.taggedUsernames.splice(index, 1);
-		}
+		},
+
+		showTextOptions() {
+			this.page = 'textOptions';
+			this.pageTitle = 'Text Post Options';
+		},
+
+		showLicenseCard() {
+			this.pageTitle = 'Select a License';
+			this.page = 'licensePicker';
+		},
+
+		toggleLicense(index) {
+			this.licenseIndex = index;
+			this.pageTitle = '';
+			this.page = 3;
+		},
 	}
 }
 </script>

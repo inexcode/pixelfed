@@ -2,6 +2,7 @@
 
 namespace App\Jobs\InboxPipeline;
 
+use Cache;
 use App\Profile;
 use App\Util\ActivityPub\{
     Helpers,
@@ -14,6 +15,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Zttp\Zttp;
+use App\Jobs\DeletePipeline\DeleteRemoteProfilePipeline;
 
 class InboxValidator implements ShouldQueue
 {
@@ -51,11 +53,72 @@ class InboxValidator implements ShouldQueue
 
         $profile = Profile::whereNull('domain')->whereUsername($username)->first();
 
+        if(isset($payload['id'])) {
+            $lockKey = hash('sha256', $payload['id']);
+            if(Cache::get($lockKey) !== null) {
+                // Job processed already
+                return 1;
+            }
+            Cache::put($lockKey, 1, 300);
+        }
+
         if(!isset($headers['signature']) || !isset($headers['date'])) {
             return;
         }
 
         if(empty($profile) || empty($headers) || empty($payload)) {
+            return;
+        }
+
+        if( $payload['type'] === 'Delete' &&
+            ( ( is_string($payload['object']) &&
+                $payload['object'] === $payload['actor'] ) ||
+            ( is_array($payload['object']) &&
+              isset($payload['object']['id'], $payload['object']['type']) &&
+              $payload['object']['type'] === 'Person' &&
+              $payload['actor'] === $payload['object']['id']
+            ))
+        ) {
+            $actor = $payload['actor'];
+            $hash = strlen($actor) <= 48 ? 
+                'b:' . base64_encode($actor) :
+                'h:' . hash('sha256', $actor);
+
+            $lockKey = 'ap:inbox:actor-delete-exists:lock:' . $hash;
+            Cache::lock($lockKey, 10)->block(5, function () use(
+                $headers,
+                $payload,
+                $actor,
+                $hash,
+                $profile
+            ) {
+                $key = 'ap:inbox:actor-delete-exists:' . $hash;
+                $actorDelete = Cache::remember($key, now()->addMinutes(15), function() use($actor) {
+                    return Profile::whereRemoteUrl($actor)
+                        ->whereNotNull('domain')
+                        ->exists();
+                });
+                if($actorDelete) {
+                    if($this->verifySignature($headers, $profile, $payload) == true) {
+                        Cache::set($key, false);
+                        $profile = Profile::whereNotNull('domain')
+                            ->whereNull('status')
+                            ->whereRemoteUrl($actor)
+                            ->first();
+                        if($profile) {
+                            DeleteRemoteProfilePipeline::dispatchNow($profile);
+                        }
+                        return;
+                    } else {
+                        // Signature verification failed, exit.
+                        return;
+                    }
+                } else {
+                    // Remote user doesn't exist, exit early.
+                    return;
+                }
+            });
+
             return;
         }
 
@@ -119,6 +182,9 @@ class InboxValidator implements ShouldQueue
             return;
         }
         $pkey = openssl_pkey_get_public($actor->public_key);
+        if(!$pkey) {
+            return 0;
+        }
         $inboxPath = "/users/{$profile->username}/inbox";
         list($verified, $headers) = HttpSignature::verify($pkey, $signatureData, $headers, $inboxPath, $body);
         if($verified == 1) { 

@@ -7,6 +7,8 @@ use League\Fractal;
 use Cache;
 use App\Services\HashidService;
 use App\Services\MediaTagService;
+use App\Services\StatusLabelService;
+use Illuminate\Support\Str;
 
 class StatusTransformer extends Fractal\TransformerAbstract
 {
@@ -20,6 +22,7 @@ class StatusTransformer extends Fractal\TransformerAbstract
         $taggedPeople = MediaTagService::get($status->id);
         
         return [
+            '_v'                        => 1,
             'id'                        => (string) $status->id,
             'shortcode'                 => HashidService::encode($status->id),
             'uri'                       => $status->url(),
@@ -55,7 +58,8 @@ class StatusTransformer extends Fractal\TransformerAbstract
             'parent'                    => [],
             'place'                     => $status->place,
             'local'                     => (bool) $status->local,
-            'taggedPeople'              => $taggedPeople
+            'taggedPeople'              => $taggedPeople,
+            'label'                     => StatusLabelService::get($status)
         ];
     }
 

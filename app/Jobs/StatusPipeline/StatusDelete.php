@@ -2,7 +2,7 @@
 
 namespace App\Jobs\StatusPipeline;
 
-use DB;
+use DB, Storage;
 use App\{
     AccountInterstitial,
     MediaTag,
@@ -17,6 +17,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use League\Fractal;
+use Illuminate\Support\Str;
 use League\Fractal\Serializer\ArraySerializer;
 use App\Transformer\ActivityPub\Verb\DeleteNote;
 use App\Util\ActivityPub\Helpers;
@@ -24,6 +25,8 @@ use GuzzleHttp\Pool;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
 use App\Util\ActivityPub\HttpSignature;
+use App\Services\StatusService;
+use App\Services\MediaStorageService;
 
 class StatusDelete implements ShouldQueue
 {
@@ -58,6 +61,7 @@ class StatusDelete implements ShouldQueue
         $status = $this->status;
         $profile = $this->status->profile;
 
+        StatusService::del($status->id);
         $count = $profile->statuses()
         ->getQuery()
         ->whereIn('type', ['photo', 'photo:album', 'video', 'video:album', 'photo:video:album'])
@@ -79,20 +83,9 @@ class StatusDelete implements ShouldQueue
     public function unlinkRemoveMedia($status)
     {
         foreach ($status->media as $media) {
-            $thumbnail = storage_path("app/{$media->thumbnail_path}");
-            $photo = storage_path("app/{$media->media_path}");
-
-            try {
-                if (is_file($thumbnail)) {
-                    unlink($thumbnail);
-                }
-                if (is_file($photo)) {
-                    unlink($photo);
-                }
-                $media->delete();
-            } catch (Exception $e) {
-            }
+            MediaStorageService::delete($media, true);
         }
+
         if($status->in_reply_to_id) {
             DB::transaction(function() use($status) {
                 $parent = Status::findOrFail($status->in_reply_to_id);

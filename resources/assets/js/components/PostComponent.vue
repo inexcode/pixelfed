@@ -45,8 +45,15 @@
          </div>
           <div class="col-12 col-md-8 px-0 mx-0">
               <div class="postPresenterContainer d-none d-flex justify-content-center align-items-center" style="background: #000;">
-                <div v-if="status.pf_type === 'photo'" class="w-100">
-                  <photo-presenter :status="status" v-on:lightbox="lightbox"></photo-presenter>
+                <div v-if="status.pf_type === 'text'" class="w-100">
+                  <div class="w-100 card-img-top border-bottom rounded-0" style="background-image: url(/storage/textimg/bg_1.jpg);background-size: cover;width: 100%;height: 540px;">
+                    <div class="w-100 h-100 d-flex justify-content-center align-items-center">
+                      <p class="text-center text-break h3 px-5 font-weight-bold" v-html="status.content"></p>
+                    </div>
+                  </div>
+                </div>
+                <div v-else-if="status.pf_type === 'photo'" class="w-100">
+                  <photo-presenter :status="status" v-on:lightbox="lightbox" v-on:togglecw="status.sensitive = false"></photo-presenter>
                 </div>
 
                 <div v-else-if="status.pf_type === 'video'" class="w-100">
@@ -104,14 +111,14 @@
             </div>
             <div class="d-flex flex-md-column flex-column-reverse h-100" style="overflow-y: auto;">
               <div class="card-body status-comments pt-0">
-                <div class="status-comment">
+                <div v-if="status.pf_type != 'text'" class="status-comment">
                   <div v-if="status.content.length" class="pt-3">
-                    <div v-if="showCaption != true">
+                    <div v-if="status.sensitive">
                       <span class="py-3">
                         <a class="text-dark font-weight-bold mr-1" :href="status.account.url" v-bind:title="status.account.username">{{truncate(status.account.username,15)}}</a>
                         <span class="text-break">
                           <span class="font-italic text-muted">This comment may contain sensitive material</span>
-                          <span class="text-primary cursor-pointer pl-1" @click="showCaption = true">Show</span>
+                          <span class="text-primary cursor-pointer pl-1" @click="status.sensitive = false">Show</span>
                         </span>
                       </span>
                     </div>
@@ -327,7 +334,7 @@
                   <p class="lead mb-0">
                     by <a :href="statusProfileUrl">{{statusUsername}}</a>
                     <span v-if="relationship && profile && user && !relationship.following && profile.id != user.id">
-                      <span class="px-1 text-lighter">•</span> 
+                      <span class="px-1 text-lighter">•</span>
                       <a class="font-weight-bold small" href="#">Follow</a>
                     </span>
                   </p>
@@ -341,7 +348,7 @@
                   </h2>
                   <p class="lead mb-0">
                     by <a :href="statusProfileUrl">{{statusUsername}}</a>
-                    <!-- <span class="px-1 text-lighter">•</span> 
+                    <!-- <span class="px-1 text-lighter">•</span>
                     <a class="font-weight-bold small" href="#">Follow</a> -->
                   </p>
                 </div>
@@ -393,7 +400,7 @@
                         <label class="custom-control-label small font-weight-bold text-muted" style="padding-top: 3px" for="sensitiveReply">Add Content Warning</label>
                       </div>
                     </span>
-                    <button class="btn btn-sm font-weight-bold btn-outline-primary py-1" 
+                    <button class="btn btn-sm font-weight-bold btn-outline-primary py-1"
                     v-if="replyText.length > 2" @click="postReply">Post</button>
                   </p>
                 </div>
@@ -435,7 +442,7 @@
                       </span>
                     </p>
                   </div>
-                </div> 
+                </div>
               </div>
             </div>
           </div>
@@ -594,17 +601,17 @@
     size="sm"
     body-class="list-group-flush p-0 rounded">
     <div class="list-group text-center">
-      <div v-if="user && user.id != status.account.id && relationship && relationship.following" class="list-group-item rounded cursor-pointer font-weight-bold text-danger" @click="ctxMenuUnfollow()">Unfollow</div>
-      <div v-if="user && user.id != status.account.id && relationship && !relationship.following" class="list-group-item rounded cursor-pointer font-weight-bold text-primary" @click="ctxMenuFollow()">Follow</div>
+      <!-- <div v-if="user && user.id != status.account.id && relationship && relationship.following" class="list-group-item rounded cursor-pointer font-weight-bold text-danger" @click="ctxMenuUnfollow()">Unfollow</div>
+      <div v-if="user && user.id != status.account.id && relationship && !relationship.following" class="list-group-item rounded cursor-pointer font-weight-bold text-primary" @click="ctxMenuFollow()">Follow</div> -->
       <div v-if="status && status.local == true" class="list-group-item rounded cursor-pointer" @click="showEmbedPostModal()">Embed</div>
       <div class="list-group-item rounded cursor-pointer" @click="ctxMenuCopyLink()">Copy Link</div>
       <div v-if="status && user.id == status.account.id" class="list-group-item rounded cursor-pointer" @click="toggleCommentVisibility">{{ showComments ? 'Disable' : 'Enable'}} Comments</div>
       <a v-if="status && user.id == status.account.id" class="list-group-item rounded cursor-pointer text-dark text-decoration-none" :href="editUrl()">Edit</a>
-      <div v-if="user && user.is_admin == true" class="list-group-item rounded cursor-pointer" @click="ctxModMenu()">ModTools</div>
-      <div v-if="status && user.id != status.account.id && !relationship.blocking && !user.is_admin" class="list-group-item rounded cursor-pointer font-weight-bold text-danger" @click="blockProfile()">Block</div>
-      <div v-if="status && user.id != status.account.id && relationship.blocking && !user.is_admin" class="list-group-item rounded cursor-pointer font-weight-bold text-danger" @click="unblockProfile()">Unblock</div>
-      <a v-if="user && user.id != status.account.id && !user.is_admin" class="list-group-item rounded cursor-pointer font-weight-bold text-danger text-decoration-none" :href="reportUrl()">Report</a>
-      <div v-if="status && (user.is_admin || user.id == status.account.id)" class="list-group-item rounded cursor-pointer font-weight-bold text-danger" @click="deletePost(ctxMenuStatus)">Delete</div>
+      <div v-if="user && user.is_admin == true" class="list-group-item rounded cursor-pointer" @click="ctxModMenu()">Moderation Tools</div>
+      <div v-if="status && user.id != status.account.id && !relationship.blocking && !user.is_admin" class="list-group-item rounded cursor-pointer text-danger" @click="blockProfile()">Block</div>
+      <div v-if="status && user.id != status.account.id && relationship.blocking && !user.is_admin" class="list-group-item rounded cursor-pointer text-danger" @click="unblockProfile()">Unblock</div>
+      <a v-if="user && user.id != status.account.id && !user.is_admin" class="list-group-item rounded cursor-pointer text-danger text-decoration-none" :href="reportUrl()">Report</a>
+      <div v-if="status && (user.is_admin || user.id == status.account.id)" class="list-group-item rounded cursor-pointer text-danger" @click="deletePost(ctxMenuStatus)">Delete</div>
       <div class="list-group-item rounded cursor-pointer text-lighter" @click="closeCtxMenu()">Cancel</div>
     </div>
   </b-modal>
@@ -636,8 +643,10 @@
     size="md"
     body-class="p-2 rounded">
     <div>
-      <textarea class="form-control" rows="4" style="border: none; font-size: 18px; resize: none; white-space: pre-wrap;outline: none;" placeholder="Reply here ..." v-model="replyText">
-      </textarea>
+      <vue-tribute :options="tributeSettings">
+        <textarea class="form-control" rows="4" style="border: none; font-size: 18px; resize: none; white-space: pre-wrap;outline: none;" placeholder="Reply here ..." v-model="replyText">
+        </textarea>
+      </vue-tribute>
 
       <div class="border-top border-bottom my-2">
         <ul class="nav align-items-center emoji-reactions" style="overflow-x: scroll;flex-wrap: unset;">
@@ -678,10 +687,10 @@
   .postPresenterContainer {
     background: #fff;
   }
-  @media(min-width: 720px) {  
-    .postPresenterContainer { 
-      min-height: 600px;  
-    } 
+  @media(min-width: 720px) {
+    .postPresenterContainer {
+      min-height: 600px;
+    }
   }
   ::-webkit-scrollbar {
       width: 0px;
@@ -750,10 +759,12 @@
 </style>
 
 <script>
+import VueTribute from 'vue-tribute'
 
 pixelfed.postComponent = {};
 
 export default {
+
     props: [
       'status-id',
       'status-username',
@@ -762,8 +773,14 @@ export default {
       'status-profile-url',
       'status-avatar',
       'status-profile-id',
-      'profile-layout'
+      'profile-layout',
+      'profile-recent'
     ],
+
+    components: {
+        VueTribute
+    },
+
     data() {
         return {
             config: window.App.config,
@@ -810,6 +827,38 @@ export default {
             profileMorePosts: [],
             replySending: false,
             reactionBarLoading: true,
+            tributeSettings: {
+              collection: [
+                {
+                  trigger: '@',
+                  menuShowMinLength: 2,
+                  values: (function (text, cb) {
+                    let url = '/api/compose/v0/search/mention';
+                    axios.get(url, { params: { q: text }})
+                    .then(res => {
+                      cb(res.data);
+                    })
+                    .catch(err => {
+                      console.log(err);
+                    })
+                  })
+                },
+                {
+                  trigger: '#',
+                  menuShowMinLength: 2,
+                  values: (function (text, cb) {
+                    let url = '/api/compose/v0/search/hashtag';
+                    axios.get(url, { params: { q: text }})
+                    .then(res => {
+                      cb(res.data);
+                    })
+                    .catch(err => {
+                      console.log(err);
+                    })
+                  })
+                }
+              ]
+            }
           }
     },
     watch: {
@@ -839,11 +888,12 @@ export default {
     beforeMount() {
       let u = new URLSearchParams(window.location.search);
       let forceMetro = localStorage.getItem('pf_metro_ui.exp.forceMetro') == 'true';
+      if(this.statusTemplate == 'text') {
+        this.layout = 'metro';
+        return;
+      }
       if(forceMetro == true || u.has('ui') && u.get('ui') == 'metro' && this.layout != 'metro') {
         this.layout = 'metro';
-      }
-      if(u.has('ui') && u.get('ui') == 'moment' && this.layout != 'moment') {
-        this.layout = 'moment';
       }
     },
 
@@ -892,20 +942,16 @@ export default {
                   this.fetchComments();
                 }
                 this.loaded = true;
-                setTimeout(function() {
-                  self.fetchProfilePosts();
-                }, 3000);
+
+                if(this.profileRecent !== false) {
+	                setTimeout(function() {
+	                  self.fetchProfilePosts();
+	                }, 3000);
+                }
                 setTimeout(function() {
                   self.fetchState();
-                  document.querySelectorAll('.status-comment .comment-text a').forEach(function(i, e) { 
-                    if(i.href.startsWith(window.location.origin)) {
-                      return;
-                    }
-                    let tag = i.innerText;
-                    if(tag.startsWith('#')) {
-                      tag = tag.substr(1);
-                    }
-                    i.href = '/discover/tags/'+tag+'?src=rph'; 
+                  document.querySelectorAll('.status-comment .postCommentsContainer .comment-body a').forEach(function(i, e) {
+                    i.href = App.util.format.rewriteLinks(i);
                   });
                 }, 500);
             }).catch(error => {
@@ -1160,7 +1206,7 @@ export default {
           comment: this.replyText,
           sensitive: this.replySensitive
         }
-        
+
         this.replyText = '';
 
         axios.post('/i/comment', data)
@@ -1220,7 +1266,7 @@ export default {
             this.redirect('/login?next=' + encodeURIComponent(window.location.pathname));
             return;
           }
-          
+
           if(this.status.comments_disabled) {
             return;
           }
@@ -1242,7 +1288,7 @@ export default {
           axios.get(url)
             .then(response => {
                 let self = this;
-                this.results = this.layout == 'metro' ? 
+                this.results = this.layout == 'metro' ?
                   _.reverse(response.data.data) :
                   response.data.data;
                 this.pagination = response.data.meta.pagination;
@@ -1252,15 +1298,8 @@ export default {
                 $('.postCommentsLoader').addClass('d-none');
                 $('.postCommentsContainer').removeClass('d-none');
                 setTimeout(function() {
-                  document.querySelectorAll('.comments .comment-body a').forEach(function(i, e) { 
-                      if(i.href.startsWith(window.location.origin)) {
-                        return;
-                      }
-                      let tag = i.innerText;
-                      if(tag.startsWith('#')) {
-                        tag = tag.substr(1);
-                      }
-                      i.href = '/discover/tags/'+tag+'?src=rph'; 
+                  document.querySelectorAll('.status-comment .postCommentsContainer .comment-body a').forEach(function(i, e) {
+                    i.href = App.util.format.rewriteLinks(i);
                   });
                 }, 500);
             }).catch(error => {
@@ -1470,9 +1509,9 @@ export default {
         if(profile.local == true) {
           return reply.url;
         } else {
-          return showOrigin ? 
+          return showOrigin ?
             reply.url :
-            '/i/web/post/_/' + profile.id + '/' + reply.id; 
+            '/i/web/post/_/' + profile.id + '/' + reply.id;
         }
       },
 
@@ -1540,7 +1579,7 @@ export default {
             });
             swal('Untagged', 'You have been untagged from this post.', 'success');
         }).catch(err => {
-            swal('An Error Occurred', 'Please try again later.', 'error');  
+            swal('An Error Occurred', 'Please try again later.', 'error');
         });
       },
 
@@ -1702,7 +1741,7 @@ export default {
           }, 500);
         });
       },
-    
+
     },
 }
 </script>

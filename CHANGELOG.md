@@ -1,16 +1,80 @@
 # Release Notes
 
-## [Unreleased](https://github.com/pixelfed/pixelfed/compare/v0.10.9...dev)
+## [Unreleased](https://github.com/pixelfed/pixelfed/compare/v0.10.10...dev)
+### Added
+- Autocomplete Support (hashtags + mentions) ([de514f7d](https://github.com/pixelfed/pixelfed/commit/de514f7d))
+- Creative Commons Licenses ([552e950](https://github.com/pixelfed/pixelfed/commit/552e950))
+- Add Network Timeline ([af7face4](https://github.com/pixelfed/pixelfed/commit/af7face4))
+
+### Updated
+- Updated AdminController, fix variable name in updateSpam method. ([6edaf940](https://github.com/pixelfed/pixelfed/commit/6edaf940))
+- Updated RemotAvatarFetch, only dispatch jobs if cloud storage is enabled. ([4f40f6f5](https://github.com/pixelfed/pixelfed/commit/4f40f6f5))
+- Updated StatusService, add ttl of 7 days. ([6e44ae0b](https://github.com/pixelfed/pixelfed/commit/6e44ae0b))
+- Updated StatusHashtagService, use StatusService for statuses. ([0355b567](https://github.com/pixelfed/pixelfed/commit/0355b567))
+- Updated StatusHashtagService, remove deprecated methods. ([aa4c718d](https://github.com/pixelfed/pixelfed/commit/aa4c718d))
+- Updated ApiV1Controller, add StatusService del calls to update likes_count, reblogs_count and reply_count. ([05b9445c](https://github.com/pixelfed/pixelfed/commit/05b9445c))
+- Updated Like, Status and Comment controllers to add StatusService del() method to update counts. ([eab4370c](https://github.com/pixelfed/pixelfed/commit/eab4370c))
+- Updated ComposeController, use placeholder image for video media. Fixes #2595. ([789ed4b4](https://github.com/pixelfed/pixelfed/commit/789ed4b4))
+- Updated DiscoverController, change api schema. ([2eea0409](https://github.com/pixelfed/pixelfed/commit/2eea0409))
+- Updated StatusDelete pipeline, call StatusService::del() to remove status from cache. ([3f772ff8](https://github.com/pixelfed/pixelfed/commit/3f772ff8))
+- Updated StatusHashtagTransformer, add blurhash attribute. ([899bbeba](https://github.com/pixelfed/pixelfed/commit/899bbeba))
+- Updated status square previews, add blurhash and improved content warnings. ([39e389dd](https://github.com/pixelfed/pixelfed/commit/39e389dd))
+- Updated Blurhash util, add default hash for invalid media. ([38a37c15](https://github.com/pixelfed/pixelfed/commit/38a37c15))
+- Updated VideoThumbnail job, generate blurhash for videos. ([896452c7](https://github.com/pixelfed/pixelfed/commit/896452c7))
+- Updated MediaTransformers, add default blurhash attribute. ([3f14a4c4](https://github.com/pixelfed/pixelfed/commit/3f14a4c4))
+- Updated Timeline.vue, fix hashtag status previews. ([7768e844](https://github.com/pixelfed/pixelfed/commit/7768e844))
+- Updated AP helpers, fix statusFetch 404s. ([3419379a](https://github.com/pixelfed/pixelfed/commit/3419379a))
+- Updated InternalApiController, update discoverPosts method to improve performance. ([9862a855](https://github.com/pixelfed/pixelfed/commit/9862a855))
+- Updated DiscoverComponent, add blurhash and like/comment counts. ([a8ebdd2e](https://github.com/pixelfed/pixelfed/commit/a8ebdd2e))
+- Updated DiscoverComponent, add spinner loaders and remove deprecated sections. ([34869247](https://github.com/pixelfed/pixelfed/commit/34869247))
+- Updated AccountController, add mutes and blocks endpoint to pixelfed api. ([1fb7e2b2](https://github.com/pixelfed/pixelfed/commit/1fb7e2b2))
+- Updated AccountService, cache object and observe changes. ([b299da93](https://github.com/pixelfed/pixelfed/commit/b299da93))
+- Updated webfinger util, fail on invalid webfinger url. Fixes ([#2613](https://github.com/pixelfed/pixelfed/issues/2613)) ([2d11317c](https://github.com/pixelfed/pixelfed/commit/2d11317c))
+- Updated MediaStorageService, dispatch deletes to MediaDeletePipeline. ([37dbb3de](https://github.com/pixelfed/pixelfed/commit/37dbb3de))
+- Updated ComposeController, use MediaStorageService for media deletes. ([ab5469ff](https://github.com/pixelfed/pixelfed/commit/ab5469ff))
+- Updated StatusDeletePipeline, use MediaStorageService for media deletes. ([9fd90e17](https://github.com/pixelfed/pixelfed/commit/9fd90e17))
+- Updated Discover, allow public discover access. ([1404ac6e](https://github.com/pixelfed/pixelfed/commit/1404ac6e))
+- Updated pixelfed config, add media_fast_process setting. ([6bee5072](https://github.com/pixelfed/pixelfed/commit/6bee5072))
+- Updated ComposeController, add mediaProcessingCheck method. ([33b625f5](https://github.com/pixelfed/pixelfed/commit/33b625f5))
+- Updated ComposeModal, add processing step disabled by default. ([e6e76e80](https://github.com/pixelfed/pixelfed/commit/e6e76e80))
+- Updated DiscoverComponent, allow unauthenticated if enabled. ([a1059a6e](https://github.com/pixelfed/pixelfed/commit/a1059a6e))
+- Updated components, improve content warnings. ([a9e98965](https://github.com/pixelfed/pixelfed/commit/a9e98965))
+- Updated ComposeModal, prevent tagging empty users. Fixes #2633. ([ceae664c](https://github.com/pixelfed/pixelfed/commit/ceae664c))
+- Updated ComposeModal, show filter warning for unsupported browsers. ([12ce7602](https://github.com/pixelfed/pixelfed/commit/12ce7602))
+- Updated Hashtag component, fix null infinite loading bug. Fixes #2637. ([55136518](https://github.com/pixelfed/pixelfed/commit/55136518))
+- Updated filesystems config, add backup driver to store backups on other filesystems. ([ae90eef9](https://github.com/pixelfed/pixelfed/commit/ae90eef9))
+- Updated Embeds. Fix Profile + Status embeds, remove following count and improve cache invalidation and hidden follower counts. ([5ac9d0e8](https://github.com/pixelfed/pixelfed/commit/5ac9d0e8))
+- Updated FederationController, return 404 for invalid webfinger addresses. Fixes ([#2647](https://github.com/pixelfed/pixelfed/issues/2647)). ([deb6f115](https://github.com/pixelfed/pixelfed/commit/deb6f115))
+- Updated InboxPipeline, fail earlier for invalid public keys. Fixes ([#2648](https://github.com/pixelfed/pixelfed/issues/2648)). ([d1c5e9b8](https://github.com/pixelfed/pixelfed/commit/d1c5e9b8))
+- Updated Status model, refactor liked and shared methods to fix cache invalidation bug. ([f05c3b66](https://github.com/pixelfed/pixelfed/commit/f05c3b66))
+- Updated Timeline component, add inline reports modal. ([e64b4bd3](https://github.com/pixelfed/pixelfed/commit/e64b4bd3))
+- Updated federation pipeline, add locks. ([ddc76887](https://github.com/pixelfed/pixelfed/commit/ddc76887))
+- Updated MediaStorageService, improve head checks to fix failed jobs. ([1769cdfd](https://github.com/pixelfed/pixelfed/commit/1769cdfd))
+- Updated user admin, remove expensive db query and add search. ([8feeadbf](https://github.com/pixelfed/pixelfed/commit/8feeadbf))
+- Updated Compose apis, prevent private accounts from posting public or unlisted scopes. ([f53bfa6f](https://github.com/pixelfed/pixelfed/commit/f53bfa6f))
+- Updated font icons, use font-display:swap. ([77d4353a](https://github.com/pixelfed/pixelfed/commit/77d4353a))
+- Updated ComposeModal, limit visibility scope for private accounts. ([001d4105](https://github.com/pixelfed/pixelfed/commit/001d4105))
+- Updated ComposeController, add autocomplete apis for hashtags and mentions. ([f0e48a09](https://github.com/pixelfed/pixelfed/commit/f0e48a09))
+- Updated StatusController, invalidate profile embed cache on status delete. ([9c8a87c3](https://github.com/pixelfed/pixelfed/commit/9c8a87c3))
+- Updated moderation api, invalidate profile embed. ([b2501bfc](https://github.com/pixelfed/pixelfed/commit/b2501bfc))
+- Updated Nodeinfo util, use last_active_at for monthly active user count. ([d200c12c](https://github.com/pixelfed/pixelfed/commit/d200c12c))
+- Updated PhotoPresenter, add width and height to images. ([3f8202e2](https://github.com/pixelfed/pixelfed/commit/3f8202e2))
+- Updated Compose Apis, refactor rate limits. ([42375b3d](https://github.com/pixelfed/pixelfed/commit/42375b3d))
+- Updated PublicApiController, show unlisted comments. ([e1c6297e](https://github.com/pixelfed/pixelfed/commit/e1c6297e))
+- Updated ApiV1Controller, add missing variable. ([886ea617](https://github.com/pixelfed/pixelfed/commit/886ea617))
+- Updated PublicApiController, limit network pagination to 3 months. ([10119bbb](https://github.com/pixelfed/pixelfed/commit/10119bbb))
+-  ([](https://github.com/pixelfed/pixelfed/commit/))
+
+## [v0.10.10 (2021-01-28)](https://github.com/pixelfed/pixelfed/compare/v0.10.9...v0.10.10)
 ### Added
 - Direct Messages ([d63569c](https://github.com/pixelfed/pixelfed/commit/d63569c))
-- ActivityPubFetchService for signed GET requests ([8763bfc5](https://github.com/pixelfed/pixelfed/commit/8763bfc5))
+- ActivityPubFetchService for signed GET requests ([8763bfc5](https://github.com/pixelfed/pixelfed/commit/8763bfc5)) ([3ee1215a](https://github.com/pixelfed/pixelfed/commit/3ee1215a))
 - Custom content warnings for remote posts ([6afc61a4](https://github.com/pixelfed/pixelfed/commit/6afc61a4))
 - Thai translations ([74cd536](https://github.com/pixelfed/pixelfed/commit/74cd536))
 - Added Bookmarks to v1 api ([99cb48c5](https://github.com/pixelfed/pixelfed/commit/99cb48c5))
 - Added New Post notification to Timeline ([a0e7c4d5](https://github.com/pixelfed/pixelfed/commit/a0e7c4d5))
 - Add Instagram Import ([e2a6bdd0](https://github.com/pixelfed/pixelfed/commit/e2a6bdd0))
 - Add notification preview to NotificationCard ([28445e27](https://github.com/pixelfed/pixelfed/commit/28445e27))
-- Add Grid Mode to Timelines ([c1853ca8](https://github.com/pixelfed/pixelfed/commit/c1853ca8))
 - Add MediaPathService ([c54b29c5](https://github.com/pixelfed/pixelfed/commit/c54b29c5))
 - Add Media Tags ([711fc020](https://github.com/pixelfed/pixelfed/commit/711fc020))
 - Add MediaTagService ([524c6d45](https://github.com/pixelfed/pixelfed/commit/524c6d45))
@@ -24,6 +88,7 @@
 - Add autospam feature ([b892bcf0](https://github.com/pixelfed/pixelfed/commit/b892bcf0))
 - Add hCaptcha ([082c1ccb](https://github.com/pixelfed/pixelfed/commit/082c1ccb))
 - Add StatusView model to store views for discover algorithm ([7a68ee94](https://github.com/pixelfed/pixelfed/commit/7a68ee94))
+- Add Year in Review feature (mysql only) ([f32072a3](https://github.com/pixelfed/pixelfed/commit/f32072a3))
 
 ### Updated
 - Updated PostComponent, fix remote urls ([42716ccc](https://github.com/pixelfed/pixelfed/commit/42716ccc))
@@ -145,8 +210,8 @@
 - Updated avatars, use jpeg default. ([f6528c84](https://github.com/pixelfed/pixelfed/commit/f6528c84))
 - Updated antispam bouncer, change recent from 1 week to 3 months. ([7d818197](https://github.com/pixelfed/pixelfed/commit/7d818197))
 - Updated Post components, fix remote post and profile urls. ([cfcf17f3](https://github.com/pixelfed/pixelfed/commit/cfcf17f3))
-- Update migrations, fix broken oauth change. ([4a885c88](https://github.com/pixelfed/pixelfed/commit/4a885c88))
-- Update LikeController, store status_profile_id and is_comment attributes. ([799a4cba](https://github.com/pixelfed/pixelfed/commit/799a4cba))
+- Updated migrations, fix broken oauth change. ([4a885c88](https://github.com/pixelfed/pixelfed/commit/4a885c88))
+- Updated LikeController, store status_profile_id and is_comment attributes. ([799a4cba](https://github.com/pixelfed/pixelfed/commit/799a4cba))
 - Updated Profile, fix status count. ([6dcd472b](https://github.com/pixelfed/pixelfed/commit/6dcd472b))
 - Updated StatusService, cast response to array. ([0fbde91e](https://github.com/pixelfed/pixelfed/commit/0fbde91e))
 - Updated status model, use scope over deprecated visibility attribute. ([f70826e1](https://github.com/pixelfed/pixelfed/commit/f70826e1))
@@ -155,6 +220,44 @@
 - Updated AP helpers, fixed federation bug. ([a52564f3](https://github.com/pixelfed/pixelfed/commit/a52564f3))
 - Updated Helpers, cache profiles. ([1f672ecf](https://github.com/pixelfed/pixelfed/commit/1f672ecf))
 - Updated DiscoverController, improve trending api performance. ([d8d3331f](https://github.com/pixelfed/pixelfed/commit/d8d3331f))
+- Updated InboxWorker, fix race condition in account deletes. ([4a4d8f00](https://github.com/pixelfed/pixelfed/commit/4a4d8f00))
+- Updated StoryItemTransformer, increase story duration from 5 seconds to 10 seconds. ([5b0b14fc](https://github.com/pixelfed/pixelfed/commit/5b0b14fc))
+- Updated StatusController, add view method. ([0cfc12c5](https://github.com/pixelfed/pixelfed/commit/0cfc12c5))
+- Updated MediaPathService, add story method. ([aac44309](https://github.com/pixelfed/pixelfed/commit/aac44309))
+- Updated StatusDelete job, handle cloud storage media deletes. ([4b1a0fd7](https://github.com/pixelfed/pixelfed/commit/4b1a0fd7))
+- Updated ImageOptimizePipeline, add skip_optimize and MediaStorageService support. ([234f72f3](https://github.com/pixelfed/pixelfed/commit/234f72f3))
+- Updated Media model, add cdn support to url and thumbnailUrl methods. ([57fa889d](https://github.com/pixelfed/pixelfed/commit/57fa889d))
+- Updated MediaController, remove deprecated endpoint. ([8132db74](https://github.com/pixelfed/pixelfed/commit/8132db74))
+- Updated api controllers, deprecate old endpoints. ([4415af1b](https://github.com/pixelfed/pixelfed/commit/4415af1b))
+- Updated mobile apis, add blurhash. ([cf40526e](https://github.com/pixelfed/pixelfed/commit/cf40526e))
+- Updated Image media util, store dimensions of media not thumbnail. ([40bd64aa](https://github.com/pixelfed/pixelfed/commit/40bd64aa))
+- Updated MediaTransformers, include meta attribute with focus and dimensions. ([f8cbe1e4](https://github.com/pixelfed/pixelfed/commit/f8cbe1e4))
+- Updated storage, add remote media cache directory. ([0eabbfdd](https://github.com/pixelfed/pixelfed/commit/0eabbfdd))
+- Updated backup config, prevents gateway timeouts for large databases using mysql. ([9cd4bd74](https://github.com/pixelfed/pixelfed/commit/9cd4bd74))
+- Updated MediaPipeline, handle cloud object storage. ([be6d12fc](https://github.com/pixelfed/pixelfed/commit/be6d12fc))
+- Updated AP Helpers, use MediaStoragePipeline. ([01a1ffd6](https://github.com/pixelfed/pixelfed/commit/01a1ffd6))
+- Updated RemoteProfile component, change thumbnail url. ([c1118956](https://github.com/pixelfed/pixelfed/commit/c1118956))
+- Updated blade views. ([9683e846](https://github.com/pixelfed/pixelfed/commit/9683e846))
+- Updated cache config, use phpredis by default. ([ed6877df](https://github.com/pixelfed/pixelfed/commit/ed6877df))
+- Updated components, fix url rewriter. Closes #2538. ([e8cc66dc](https://github.com/pixelfed/pixelfed/commit/e8cc66dc))
+- Updated UserCreate command, closes #2581. ([b2b8c9f9](https://github.com/pixelfed/pixelfed/commit/b2b8c9f9))
+- Updated AvatarController, remove deprecated thumb_path. ([889c3d87](https://github.com/pixelfed/pixelfed/commit/889c3d87))
+- Updated VideoThumbnail, add MediaStoragePipeline. ([98c44f7b](https://github.com/pixelfed/pixelfed/commit/98c44f7b))
+- Updated StatusDelete pipeline, fix object storage thumbnail deletion. ([f930c4bd](https://github.com/pixelfed/pixelfed/commit/f930c4bd))
+- Updated MediaStorageService, clear transformer cache after storing media. ([ce6ab80d](https://github.com/pixelfed/pixelfed/commit/ce6ab80d))
+- Updated MediaTransformer, remove cache busting. ([258b2729](https://github.com/pixelfed/pixelfed/commit/258b2729))
+- Updated AP helpers, only run MediaStoragePipeline if using cloud storage. ([77f21b4b](https://github.com/pixelfed/pixelfed/commit/77f21b4b))
+- Updated AvatarObserver, add logic to delete avatars stored in S3. ([9eafc31e](https://github.com/pixelfed/pixelfed/commit/9eafc31e))
+- Updated Profile model, use cdn_url for avatars. ([ea8e4261](https://github.com/pixelfed/pixelfed/commit/ea8e4261))
+- Updated ActivityPubFetchService, add url validation. ([654b08d3](https://github.com/pixelfed/pixelfed/commit/654b08d3))
+- Updated MediaStorageService, add avatar method. ([94a9f685](https://github.com/pixelfed/pixelfed/commit/94a9f685))
+- Updated AvatarPipeline, add remote avatar fetch. ([4c148055](https://github.com/pixelfed/pixelfed/commit/4c148055))
+- Updated ComposeController, update media version. ([cc2d4bf8](https://github.com/pixelfed/pixelfed/commit/cc2d4bf8))
+- Updated AP Helpers, add blurhash and RemoteAvatarFetch. ([de8828e8](https://github.com/pixelfed/pixelfed/commit/de8828e8))
+- Updated Timeline, prevent nextTick() when reloading same comment modal. Fixes #2584. ([cc84125b](https://github.com/pixelfed/pixelfed/commit/cc84125b))
+- Updated site config, add labels to config. ([abe9cb3d](https://github.com/pixelfed/pixelfed/commit/abe9cb3d))
+- Update StatusLabelService, change config key. ([4abfe76a](https://github.com/pixelfed/pixelfed/commit/4abfe76a))
+
 
 ## [v0.10.9 (2020-04-17)](https://github.com/pixelfed/pixelfed/compare/v0.10.8...v0.10.9)
 ### Added
@@ -212,7 +315,7 @@
 - Updated StatusTransformer, fixes #[2113](https://github.com/pixelfed/pixelfed/issues/2113) ([eefa6e0d](https://github.com/pixelfed/pixelfed/commit/eefa6e0d))
 - Updated InternalApiController, limit remote profile ui to remote profiles ([d918a68e](https://github.com/pixelfed/pixelfed/commit/d918a68e))
 - Updated NotificationCard, fix pagination bug #[2019](https://github.com/pixelfed/pixelfed/issues/2019) ([32beaad5](https://github.com/pixelfed/pixelfed/commit/32beaad5))
-- 
+
 
 ## [v0.10.8 (2020-01-29)](https://github.com/pixelfed/pixelfed/compare/v0.10.7...v0.10.8)
 ### Added
@@ -303,7 +406,7 @@
 - Updated CollectionController, increase limit from 18 to 50. ([c2826fd3](https://github.com/pixelfed/pixelfed/c2826fd3))
 
 ## Deprecated
-    
+
 
 ## [v0.10.6 (2019-09-30)](https://github.com/pixelfed/pixelfed/compare/v0.10.5...v0.10.6)
 
@@ -368,7 +471,7 @@
 - Run ```php artisan passport:keys```
 - Add ```OAUTH_ENABLED=true``` to .env
 - Run ```php artisan config:cache```
-    
+
 
 ## [v0.10.5 (2019-09-24)](https://github.com/pixelfed/pixelfed/compare/v0.10.4...v0.10.5)
 
@@ -379,8 +482,8 @@
 - Fixed cache bug in privacy and terms pages [#1712](https://github.com/pixelfed/pixelfed/commit/fe522da8db7a8b0d7c18d405abcb885f8678f35c)
 
 ### Changed
-    
-    
+
+
 ## [v0.10.4 (2019-09-24)](https://github.com/pixelfed/pixelfed/compare/v0.10.3...v0.10.4)
 
 ### Added
@@ -411,17 +514,17 @@
 ## Deprecated
 - Remove deprecated profile following/followers [#1697](https://github.com/pixelfed/pixelfed/pull/1697)
 - Remove old comment permalink [05f6598](https://github.com/pixelfed/pixelfed/pull/1708/commits/05f659896d903e1ff41dba810f125d721fa057e7)
-    
-    
+
+
 ## [v0.10.3 (2019-09-08)](https://github.com/pixelfed/pixelfed/compare/v0.10.2...v0.10.3)
 
 ### Added
 - Append ```.json``` to local status urls to view ActivityPub object [#1666](https://github.com/pixelfed/pixelfed/pull/1666)
 
 ### Fixed
-- Reverted ```strict``` Same-Site Cookies to ```null``` to fix 2FA/session expiry [#1667](https://github.com/pixelfed/pixelfed/pull/1667) 
-- Fixed AP errors by storing ActivityPub object id and url [#1668](https://github.com/pixelfed/pixelfed/pull/1668) [#1683](https://github.com/pixelfed/pixelfed/pull/1683) 
-- Fixed content warnings that had filter applied [#1669](https://github.com/pixelfed/pixelfed/pull/1669) 
+- Reverted ```strict``` Same-Site Cookies to ```null``` to fix 2FA/session expiry [#1667](https://github.com/pixelfed/pixelfed/pull/1667)
+- Fixed AP errors by storing ActivityPub object id and url [#1668](https://github.com/pixelfed/pixelfed/pull/1668) [#1683](https://github.com/pixelfed/pixelfed/pull/1683)
+- Fixed content warnings that had filter applied [#1669](https://github.com/pixelfed/pixelfed/pull/1669)
 
 ### Changed
 - Japanese Translations [#1673](https://github.com/pixelfed/pixelfed/pull/1673)
@@ -431,7 +534,7 @@
 
 ### Deprecated
 - Personalized Discover has been deprecated due to low use [#1670](https://github.com/pixelfed/pixelfed/pull/1670)
-    
+
 
 ## [v0.10.2 (2019-09-06)](https://github.com/pixelfed/pixelfed/compare/v0.10.1...v0.10.2)
 
@@ -451,7 +554,7 @@
 - Loops! Discover short videos
 - Preliminary support for profile PropertyValue metadata
 - Preliminary support for Direct Messages
-- Places! Run the artisan task `import:cities` 
+- Places! Run the artisan task `import:cities`
 - Emails are now validated and banned email domains are disallowed at signup. Artisan task `email:bancheck` will validate existing users.
 - .env vars `REDIS_SCHEME` and `REDIS_PATH` allow for using Redis over a Unix socket instead of TCP [#1602](https://github.com/pixelfed/pixelfed/pull/1602)
 - .env var `IMAGE_DRIVER` allows using imagick instead of gd
@@ -474,7 +577,7 @@
 - Sample nginx.conf in contrib/ now uses HTTPS instead of HTTP. Docs updated to reference this file
 - Updated register form
 - Allow users to edit email after registrations
-    
+
 
 ## [v0.10.0 (2019-07-17)](https://github.com/pixelfed/pixelfed/compare/v0.9.6...v0.10.0)
 
@@ -495,7 +598,7 @@
 
 ### Fixed
 - Hashtag post count off-by-one [#1485](https://github.com/pixelfed/pixelfed/pull/1485)
-    
+
 
 ## [v0.9.5 (2019-07-10)](https://github.com/pixelfed/pixelfed/compare/v0.9.4...v0.9.5)
 
@@ -531,8 +634,8 @@
 
 ### Removed
 - Remove Classic Compose UI [#1434](https://github.com/pixelfed/pixelfed/pull/1434), [72bffd1](https://github.com/pixelfed/pixelfed/commit/72bffd1) [a2640af](https://github.com/pixelfed/pixelfed/commit/a2640af)
-- 
-    
+-
+
 
 ## [v0.9.4 (2019-06-03)](https://github.com/pixelfed/pixelfed/compare/v0.9.0...v0.9.4)
 
@@ -572,7 +675,7 @@ php artisan config:cache
 ### Removed
 - Google Recaptcha is no longer supported (#1231)
 - Lightbox has been deprecated in favor of double-tap-to-like; it will return as a dedicated button in the future (#1277)
-    
+
 
 ## [v0.9.0 (2019-04-17)](https://github.com/pixelfed/pixelfed/compare/v0.8.6...v0.9.0)
 
@@ -598,7 +701,7 @@ php artisan config:cache
 
 ### Removed
 - Removed identicons due to SVG compatibility issues with federation. New users will instead be assigned a default avatar.
-    
+
 
 ## [v0.8.6 (2019-04-06)](https://github.com/pixelfed/pixelfed/compare/v0.8.5...v0.8.6)
 

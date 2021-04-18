@@ -2,6 +2,7 @@
 
 namespace App\Jobs\InboxPipeline;
 
+use Cache;
 use App\Profile;
 use App\Util\ActivityPub\{
     Helpers,
@@ -14,13 +15,13 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Zttp\Zttp;
+use App\Jobs\DeletePipeline\DeleteRemoteProfilePipeline;
 
 class InboxWorker implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $headers;
-    protected $profile;
     protected $payload;
 
     public $timeout = 60;
@@ -48,11 +49,71 @@ class InboxWorker implements ShouldQueue
         $headers = $this->headers;
         $payload = json_decode($this->payload, true, 8);
 
+        if(isset($payload['id'])) {
+            $lockKey = hash('sha256', $payload['id']);
+            if(Cache::get($lockKey) !== null) {
+                // Job processed already
+                return 1;
+            }
+            Cache::put($lockKey, 1, 300);
+        }
+
         if(!isset($headers['signature']) || !isset($headers['date'])) {
             return;
         }
 
         if(empty($headers) || empty($payload)) {
+            return;
+        }
+
+        if( $payload['type'] === 'Delete' &&
+            ( ( is_string($payload['object']) &&
+                $payload['object'] === $payload['actor'] ) ||
+            ( is_array($payload['object']) &&
+              isset($payload['object']['id'], $payload['object']['type']) &&
+              $payload['object']['type'] === 'Person' &&
+              $payload['actor'] === $payload['object']['id']
+            ))
+        ) {
+            $actor = $payload['actor'];
+            $hash = strlen($actor) <= 48 ? 
+                'b:' . base64_encode($actor) :
+                'h:' . hash('sha256', $actor);
+
+            $lockKey = 'ap:inbox:actor-delete-exists:lock:' . $hash;
+            Cache::lock($lockKey, 10)->block(5, function () use(
+                $headers,
+                $payload,
+                $actor,
+                $hash
+            ) {
+                $key = 'ap:inbox:actor-delete-exists:' . $hash;
+                $actorDelete = Cache::remember($key, now()->addMinutes(15), function() use($actor) {
+                    return Profile::whereRemoteUrl($actor)
+                        ->whereNotNull('domain')
+                        ->exists();
+                });
+                if($actorDelete) {
+                    if($this->verifySignature($headers, $payload) == true) {
+                        Cache::set($key, false);
+                        $profile = Profile::whereNotNull('domain')
+                            ->whereNull('status')
+                            ->whereRemoteUrl($actor)
+                            ->first();
+                        if($profile) {
+                            DeleteRemoteProfilePipeline::dispatchNow($profile);
+                        }
+                        return;
+                    } else {
+                        // Signature verification failed, exit.
+                        return;
+                    }
+                } else {
+                    // Remote user doesn't exist, exit early.
+                    return;
+                }
+            });
+
             return;
         }
 
@@ -95,12 +156,10 @@ class InboxWorker implements ShouldQueue
         ) {
             if(parse_url($bodyDecoded['object']['attributedTo'], PHP_URL_HOST) !== $keyDomain) {
                 return;
-                abort(400, 'Invalid request');
             }
         }
         if(!$keyDomain || !$idDomain || $keyDomain !== $idDomain) {
             return;
-            abort(400, 'Invalid request');
         }
         $actor = Profile::whereKeyId($keyId)->first();
         if(!$actor) {
@@ -111,6 +170,9 @@ class InboxWorker implements ShouldQueue
             return;
         }
         $pkey = openssl_pkey_get_public($actor->public_key);
+        if(!$pkey) {
+            return 0;
+        }
         $inboxPath = "/f/inbox";
         list($verified, $headers) = HttpSignature::verify($pkey, $signatureData, $headers, $inboxPath, $body);
         if($verified == 1) { 

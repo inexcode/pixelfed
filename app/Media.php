@@ -4,6 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Util\Media\License;
 use Storage;
 
 class Media extends Model
@@ -29,25 +30,28 @@ class Media extends Model
 
     public function url()
     {
-        if(!empty($this->remote_media) && $this->remote_url) {
-            //$url = \App\Services\MediaProxyService::get($this->remote_url, $this->mime);
-            $url = $this->remote_url;
-        } else {
-            $path = $this->media_path;
-            $url = $this->cdn_url ?? config('app.url') . Storage::url($path);
+        if($this->cdn_url) {
+            return $this->cdn_url;
         }
 
-        return $url;
+        if($this->remote_media && $this->remote_url) {
+            return $this->remote_url;
+        }
+
+        return url(Storage::url($this->media_path));
     }
 
     public function thumbnailUrl()
     {
-        if($this->remote_media == true) {
-            return $this->remote_url;
-        } else {
-            $path = $this->thumbnail_path ?? 'public/no-preview.png';
-            return url(Storage::url($path));
+        if($this->thumbnail_url) {
+            return $this->thumbnail_url;
         }
+
+        if(!$this->remote_media && $this->thumbnail_path) {
+            return url(Storage::url($this->thumbnail_path));
+        }
+
+        return url(Storage::url('public/no-preview.png'));
     }
 
     public function thumb()
@@ -97,5 +101,26 @@ class Media extends Model
         if($meta && isset($meta['Model'])) {
             return $meta['Model'];
         }
+    }
+
+    public function getLicense()
+    {
+        $license = $this->license;
+
+        if(!$license || strlen($license) > 2 || $license == 1) {
+            return null;
+        }
+
+        if(!in_array($license, License::keys())) {
+            return null;
+        }
+
+        $res = License::get()[$license];
+
+        return [
+            'id' => $res['id'],
+            'title' => $res['title'],
+            'url' => $res['url']
+        ];
     }
 }

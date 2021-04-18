@@ -20,6 +20,7 @@ use League\Fractal;
 use App\Util\Media\Filter;
 use Illuminate\Support\Str;
 use App\Services\HashidService;
+use App\Services\StatusService;
 
 class StatusController extends Controller
 {
@@ -73,6 +74,12 @@ class StatusController extends Controller
         }
 
         $template = $status->in_reply_to_id ? 'status.reply' : 'status.show';
+        // $template = $status->type === 'video' &&
+        //     $request->has('video_beta') && 
+        //     $request->video_beta == 1 &&
+        //     $request->user() ?
+        //     'status.show_video' : 'status.show';
+
         return view($template, compact('user', 'status'));
     }
 
@@ -211,6 +218,8 @@ class StatusController extends Controller
 
         Cache::forget('_api:statuses:recent_9:' . $status->profile_id);
         Cache::forget('profile:status_count:' . $status->profile_id);
+        Cache::forget('profile:embed:' . $status->profile_id);
+        StatusService::del($status->id);
         if ($status->profile_id == $user->profile->id || $user->is_admin == true) {
             Cache::forget('profile:status_count:'.$status->profile_id);
             StatusDelete::dispatch($status);
@@ -266,7 +275,8 @@ class StatusController extends Controller
         }
  
         Cache::forget('status:'.$status->id.':sharedby:userid:'.$user->id);
-
+        StatusService::del($status->id);
+        
         if ($request->ajax()) {
             $response = ['code' => 200, 'msg' => 'Share saved', 'count' => $count];
         } else {
@@ -282,7 +292,7 @@ class StatusController extends Controller
         $resource = new Fractal\Resource\Item($status, new Note());
         $res = $fractal->createData($resource)->toArray();
 
-        return response()->json($res['data'], 200, ['Content-Type' => 'application/activity+json'], JSON_PRETTY_PRINT);
+        return response()->json($res['data'], 200, ['Content-Type' => 'application/activity+json'], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
     }
 
     public function edit(Request $request, $username, $id)
@@ -407,5 +417,26 @@ class StatusController extends Controller
         $status->save();
 
         return response()->json([200]);
+    }
+
+    public function storeView(Request $request)
+    {
+        abort_if(!$request->user(), 403);
+
+        $this->validate($request, [
+            'status_id' => 'required|integer|exists:statuses,id',
+            'profile_id' => 'required|integer|exists:profiles,id'
+        ]);
+
+        $sid = (int) $request->input('status_id');
+        $pid = (int) $request->input('profile_id');
+
+        StatusView::firstOrCreate([
+                'status_id' => $sid,
+                'status_profile_id' => $pid,
+                'profile_id' => $request->user()->profile_id
+        ]);
+
+        return response()->json(1);
     }
 }

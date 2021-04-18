@@ -50,9 +50,9 @@ use App\Services\{
     NotificationService,
     MediaPathService,
     SearchApiV2Service,
+    StatusService,
     MediaBlocklistService
 };
-
 
 class ApiV1Controller extends Controller 
 {
@@ -98,6 +98,7 @@ class ApiV1Controller extends Controller
         	'client_secret' => $client->secret,
         	'vapid_key' => null
         ];
+        
         return response()->json($res, 200, [
             'Access-Control-Allow-Origin' => '*'
         ]);
@@ -113,14 +114,18 @@ class ApiV1Controller extends Controller
     {
         abort_if(!$request->user(), 403);
         $id = $request->user()->id;
-        $key = 'user:last_active_at:id:'.$id;
-        $ttl = now()->addMinutes(5);
-        Cache::remember($key, $ttl, function() use($id) {
-            $user = User::findOrFail($id);
-            $user->last_active_at = now();
-            $user->save();
-            return;
-        });
+
+        if($request->user()->last_active_at) {
+            $key = 'user:last_active_at:id:'.$id;
+            $ttl = now()->addMinutes(5);
+            Cache::remember($key, $ttl, function() use($id) {
+                $user = User::findOrFail($id);
+                $user->last_active_at = now();
+                $user->save();
+                return;
+            });
+        }
+
         $profile = Profile::whereNull('status')->whereUserId($id)->firstOrFail();
         $resource = new Fractal\Resource\Item($profile, new AccountTransformer());
         $res = $this->fractal->createData($resource)->toArray();
@@ -852,6 +857,8 @@ class ApiV1Controller extends Controller
             $status->save();
         }
 
+        StatusService::del($status->id);
+
         $resource = new Fractal\Resource\Item($status, new StatusTransformer());
         $res = $this->fractal->createData($resource)->toArray();
         return response()->json($res);
@@ -1031,6 +1038,20 @@ class ApiV1Controller extends Controller
         ]);
 
         $user = $request->user();
+
+        if($user->last_active_at == null) {
+            return [];
+        }
+
+        $limitKey = 'compose:rate-limit:media-upload:' . $user->id;
+        $limitTtl = now()->addMinutes(15);
+        $limitReached = Cache::remember($limitKey, $limitTtl, function() use($user) {
+            $dailyLimit = Media::whereUserId($user->id)->where('created_at', '>', now()->subDays(1))->count();
+
+            return $dailyLimit >= 250;
+        });
+        abort_if($limitReached == true, 429);
+
         $profile = $user->profile;
 
         if(config('pixelfed.enforce_account_limit') == true) {
@@ -1085,10 +1106,11 @@ class ApiV1Controller extends Controller
                 break;
         }
 
+        Cache::forget($limitKey);
         $resource = new Fractal\Resource\Item($media, new MediaTransformer());
         $res = $this->fractal->createData($resource)->toArray();
-        $res['preview_url'] = url('/storage/no-preview.png');
-        $res['url'] = url('/storage/no-preview.png');
+        $res['preview_url'] = $media->url(). '?cb=1&_v=' . time();
+        $res['url'] = $media->url(). '?cb=1&_v=' . time();
         return response()->json($res);
     }
 
@@ -1322,13 +1344,15 @@ class ApiV1Controller extends Controller
         $limit = $request->input('limit') ?? 3;
         $user = $request->user();
         
-        $key = 'user:last_active_at:id:'.$user->id;
-        $ttl = now()->addMinutes(5);
-        Cache::remember($key, $ttl, function() use($user) {
-            $user->last_active_at = now();
-            $user->save();
-            return;
-        });
+        if($user->last_active_at) {
+            $key = 'user:last_active_at:id:'.$user->id;
+            $ttl = now()->addMinutes(5);
+            Cache::remember($key, $ttl, function() use($user) {
+                $user->last_active_at = now();
+                $user->save();
+                return;
+            });
+        }
 
         $pid = $request->user()->profile_id;
 
@@ -1435,13 +1459,15 @@ class ApiV1Controller extends Controller
         $limit = $request->input('limit') ?? 3;
         $user = $request->user();
         
-        $key = 'user:last_active_at:id:'.$user->id;
-        $ttl = now()->addMinutes(5);
-        Cache::remember($key, $ttl, function() use($user) {
-            $user->last_active_at = now();
-            $user->save();
-            return;
-        });
+        if($user) {
+            $key = 'user:last_active_at:id:'.$user->id;
+            $ttl = now()->addMinutes(5);
+            Cache::remember($key, $ttl, function() use($user) {
+                $user->last_active_at = now();
+                $user->save();
+                return;
+            });
+        }
 
         if($min || $max) {
             $dir = $min ? '>' : '<';
@@ -1736,20 +1762,53 @@ class ApiV1Controller extends Controller
         $ids = $request->input('media_ids');
         $in_reply_to_id = $request->input('in_reply_to_id');
         $user = $request->user();
+        $profile = $user->profile;
+
+        $limitKey = 'compose:rate-limit:store:' . $user->id;
+        $limitTtl = now()->addMinutes(15);
+        $limitReached = Cache::remember($limitKey, $limitTtl, function() use($user) {
+            $dailyLimit = Status::whereProfileId($user->profile_id)
+                ->whereNull('in_reply_to_id')
+                ->whereNull('reblog_of_id')
+                ->where('created_at', '>', now()->subDays(1))
+                ->count();
+
+            return $dailyLimit >= 100;
+        });
+
+        abort_if($limitReached == true, 429);
+
+        $visibility = $profile->is_private ? 'private' : (
+            $profile->unlisted == true && 
+            $request->input('visibility', 'public') == 'public' ? 
+            'unlisted' : 
+            $request->input('visibility', 'public'));
+
+        if($user->last_active_at == null) {
+            return [];
+        }
 
         if($in_reply_to_id) {
             $parent = Status::findOrFail($in_reply_to_id);
 
             $status = new Status;
             $status->caption = strip_tags($request->input('status'));
-            $status->scope = $request->input('visibility', 'public');
-            $status->visibility = $request->input('visibility', 'public');
+            $status->scope = $visibility;
+            $status->visibility = $visibility;
             $status->profile_id = $user->profile_id;
             $status->is_nsfw = $user->profile->cw == true ? true : $request->input('sensitive', false);
             $status->in_reply_to_id = $parent->id;
             $status->in_reply_to_profile_id = $parent->profile_id;
             $status->save();
+            StatusService::del($parent->id);
         } else if($ids) {
+            if(Media::whereUserId($user->id)
+                ->whereNull('status_id')
+                ->find($ids)
+                ->count() == 0
+            ) {
+                abort(400, 'Invalid media_ids');
+            }
             $status = new Status;
             $status->caption = strip_tags($request->input('status'));
             $status->profile_id = $user->profile_id;
@@ -1763,7 +1822,7 @@ class ApiV1Controller extends Controller
                 if($k + 1 > config('pixelfed.max_album_length')) {
                     continue;
                 }
-                $m = Media::findOrFail($v);
+                $m = Media::whereUserId($user->id)->whereNull('status_id')->findOrFail($v);
                 if($m->profile_id !== $user->profile_id || $m->status_id) {
                     abort(403, 'Invalid media id');
                 }
@@ -1774,18 +1833,17 @@ class ApiV1Controller extends Controller
 
             if(empty($mimes)) {
                 $status->delete();
-                abort(500, 'Invalid media ids');
+                abort(400, 'Invalid media ids');
             }
 
-            $status->scope = $request->input('visibility', 'public');
-            $status->visibility = $request->input('visibility', 'public');
+            $status->scope = $visibility;
+            $status->visibility = $visibility;
             $status->type = StatusController::mimeTypeCheck($mimes);
             $status->save();
         }
 
         if(!$status) {
-            $oops = 'An error occured. RefId: '.time().'-'.$user->profile_id.':'.Str::random(5).':'.Str::random(10);
-            abort(500, $oops);
+            abort(500, 'An error occured.');
         }
 
         NewStatusPipeline::dispatch($status);
@@ -1793,6 +1851,8 @@ class ApiV1Controller extends Controller
         Cache::forget('_api:statuses:recent_9:'.$user->profile_id);
         Cache::forget('profile:status_count:'.$user->profile_id);
         Cache::forget($user->storageUsedKey());
+        Cache::forget('profile:embed:' . $status->profile_id);
+        Cache::forget($limitKey);
 
         $resource = new Fractal\Resource\Item($status, new StatusTransformer());
         $res = $this->fractal->createData($resource)->toArray();
@@ -1860,6 +1920,7 @@ class ApiV1Controller extends Controller
             SharePipeline::dispatch($share);
         }
 
+        StatusService::del($status->id);
         $resource = new Fractal\Resource\Item($status, new StatusTransformer());
         $res = $this->fractal->createData($resource)->toArray();
         return response()->json($res);
@@ -1893,6 +1954,7 @@ class ApiV1Controller extends Controller
         $status->reblogs_count = $status->shares()->count();
         $status->save();
 
+        StatusService::del($status->id);
         $resource = new Fractal\Resource\Item($status, new StatusTransformer());
         $res = $this->fractal->createData($resource)->toArray();
         return response()->json($res);

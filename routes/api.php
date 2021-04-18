@@ -2,10 +2,13 @@
 
 use Illuminate\Http\Request;
 
-$middleware = ['auth:api','twofactor','validemail','localization', 'throttle:60,1'];
+$middleware = ['auth:api','twofactor','validemail','interstitial'];
 
 Route::post('/f/inbox', 'FederationController@sharedInbox');
 Route::post('/users/{username}/inbox', 'FederationController@userInbox');
+Route::get('i/actor', 'InstanceActorController@profile');
+Route::post('i/actor/inbox', 'InstanceActorController@inbox');
+Route::get('i/actor/outbox', 'InstanceActorController@outbox');
 
 Route::group(['prefix' => 'api'], function() use($middleware) {
 
@@ -65,7 +68,7 @@ Route::group(['prefix' => 'api'], function() use($middleware) {
 		Route::post('statuses/{id}/unbookmark', 'Api\ApiV1Controller@unbookmarkStatus')->middleware($middleware);
 		Route::delete('statuses/{id}', 'Api\ApiV1Controller@statusDelete')->middleware($middleware);
 		Route::get('statuses/{id}', 'Api\ApiV1Controller@statusById')->middleware($middleware);
-		Route::post('statuses', 'Api\ApiV1Controller@statusCreate')->middleware($middleware)->middleware('throttle:maxPostsPerHour,60')->middleware('throttle:maxPostsPerDay,1440');
+		Route::post('statuses', 'Api\ApiV1Controller@statusCreate')->middleware($middleware);
 
 
 		Route::get('timelines/home', 'Api\ApiV1Controller@timelineHome')->middleware($middleware);

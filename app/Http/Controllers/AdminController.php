@@ -66,17 +66,17 @@ class AdminController extends Controller
 
 	public function reports(Request $request)
 	{
-		$this->validate($request, [
-			'filter' => 'nullable|string|in:all,open,closed'
-		]);
-		$filter = $request->input('filter');
-		$reports = Report::orderBy('created_at','desc')
+		$filter = $request->input('filter') == 'closed' ? 'closed' : 'open';
+		$reports = Report::whereHas('status')
+		->whereHas('reportedUser')
+		->whereHas('reporter')
+		->orderBy('created_at','desc')
 		->when($filter, function($q, $filter) {
 			return $filter == 'open' ? 
 			$q->whereNull('admin_seen') :
 			$q->whereNotNull('admin_seen');
 		})
-		->paginate(4);
+		->paginate(6);
 		return view('admin.reports.home', compact('reports'));
 	}
 
@@ -139,6 +139,9 @@ class AdminController extends Controller
 			$appeal->appeal_handled_at = now();
 			$appeal->save();
 
+			Cache::forget('pf:bouncer_v0:exemption_by_pid:' . $appeal->user->profile_id);
+			Cache::forget('pf:bouncer_v0:recent_by_pid:' . $appeal->user->profile_id);
+
 			return redirect('/i/admin/reports/autospam');
 		}
 
@@ -150,6 +153,9 @@ class AdminController extends Controller
 			
 		$appeal->appeal_handled_at = now();
 		$appeal->save();
+
+		Cache::forget('pf:bouncer_v0:exemption_by_pid:' . $appeal->user->profile_id);
+		Cache::forget('pf:bouncer_v0:recent_by_pid:' . $appeal->user->profile_id);
 
 		return redirect('/i/admin/reports/autospam');
 	}
