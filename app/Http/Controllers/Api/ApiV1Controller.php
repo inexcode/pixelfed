@@ -54,7 +54,7 @@ use App\Services\{
     MediaBlocklistService
 };
 
-class ApiV1Controller extends Controller 
+class ApiV1Controller extends Controller
 {
 	protected $fractal;
 
@@ -66,7 +66,7 @@ class ApiV1Controller extends Controller
 
 	public function apps(Request $request)
 	{
-		abort_if(!config('pixelfed.oauth_enabled'), 404);
+		abort_if(!config_cache('pixelfed.oauth_enabled'), 404);
 
 		$this->validate($request, [
 			'client_name' 		=> 'required',
@@ -98,7 +98,7 @@ class ApiV1Controller extends Controller
         	'client_secret' => $client->secret,
         	'vapid_key' => null
         ];
-        
+
         return response()->json($res, 200, [
             'Access-Control-Allow-Origin' => '*'
         ]);
@@ -238,7 +238,7 @@ class ApiV1Controller extends Controller
                     abort_if(!$profile->followedBy($user->profile), 403);
                 }
                 $settings = $profile->user->settings;
-                if( in_array($user->profile_id, $profile->blockedIds()->toArray()) || 
+                if( in_array($user->profile_id, $profile->blockedIds()->toArray()) ||
                     $settings->show_profile_followers == false
                 ) {
                     $res = [];
@@ -279,7 +279,7 @@ class ApiV1Controller extends Controller
                     abort_if(!$profile->followedBy($user->profile), 403);
                 }
                 $settings = $profile->user->settings;
-                if( in_array($user->profile_id, $profile->blockedIds()->toArray()) || 
+                if( in_array($user->profile_id, $profile->blockedIds()->toArray()) ||
                     $settings->show_profile_following == false
                 ) {
                     $res = [];
@@ -322,10 +322,10 @@ class ApiV1Controller extends Controller
         $max_id = $request->max_id;
         $min_id = $request->min_id;
         $pid = $request->user()->profile_id;
-        $scope = $request->only_media == true ? 
+        $scope = $request->only_media == true ?
             ['photo', 'photo:album', 'video', 'video:album'] :
             ['photo', 'photo:album', 'video', 'video:album', 'share', 'reply'];
-       
+
         if($pid == $profile->id) {
             $visibility = ['public', 'unlisted', 'private'];
         } else if($profile->is_private) {
@@ -346,11 +346,11 @@ class ApiV1Controller extends Controller
             $dir = $min_id ? '>' : '<';
             $id = $min_id ?? $max_id;
             $timeline = Status::select(
-                'id', 
+                'id',
                 'uri',
                 'caption',
                 'rendered',
-                'profile_id', 
+                'profile_id',
                 'type',
                 'in_reply_to_id',
                 'reblog_of_id',
@@ -371,11 +371,11 @@ class ApiV1Controller extends Controller
               ->get();
         } else {
             $timeline = Status::select(
-                'id', 
+                'id',
                 'uri',
                 'caption',
                 'rendered',
-                'profile_id', 
+                'profile_id',
                 'type',
                 'in_reply_to_id',
                 'reblog_of_id',
@@ -458,7 +458,7 @@ class ApiV1Controller extends Controller
             ]);
             if($remote == true && config('federation.activitypub.remoteFollow') == true) {
                 (new FollowerController())->sendFollow($user->profile, $target);
-            } 
+            }
         } else {
             $follower = new Follower();
             $follower->profile_id = $user->profile_id;
@@ -467,9 +467,9 @@ class ApiV1Controller extends Controller
 
             if($remote == true && config('federation.activitypub.remoteFollow') == true) {
                 (new FollowerController())->sendFollow($user->profile, $target);
-            } 
+            }
             FollowPipeline::dispatch($follower);
-        } 
+        }
 
         Cache::forget('profile:following:'.$target->id);
         Cache::forget('profile:followers:'.$target->id);
@@ -527,7 +527,7 @@ class ApiV1Controller extends Controller
 
         FollowRequest::whereFollowerId($user->profile_id)
             ->whereFollowingId($target->id)
-            ->delete(); 
+            ->delete();
 
         Follower::whereProfileId($user->profile_id)
             ->whereFollowingId($target->id)
@@ -535,7 +535,7 @@ class ApiV1Controller extends Controller
 
         if($remote == true && config('federation.activitypub.remoteFollow') == true) {
             (new FollowerController())->sendUndoFollow($user->profile, $target);
-        } 
+        }
 
         Cache::forget('profile:following:'.$target->id);
         Cache::forget('profile:followers:'.$target->id);
@@ -568,7 +568,7 @@ class ApiV1Controller extends Controller
         ]);
         $pid = $request->user()->profile_id ?? $request->user()->profile->id;
         $ids = collect($request->input('id'));
-        $filtered = $ids->filter(function($v) use($pid) { 
+        $filtered = $ids->filter(function($v) use($pid) {
             return $v != $pid;
         });
         $relations = Profile::whereNull('status')->findOrFail($filtered->values());
@@ -605,7 +605,7 @@ class ApiV1Controller extends Controller
             ->orWhere('name', 'like', $q)
             ->limit($limit)
             ->get();
-        
+
         $resource = new Fractal\Resource\Collection($profiles, new AccountTransformer());
         $res = $this->fractal->createData($resource)->toArray();
         return response()->json($res);
@@ -910,10 +910,10 @@ class ApiV1Controller extends Controller
     public function accountFollowRequestAccept(Request $request, $id)
     {
         abort_if(!$request->user(), 403);
-        
+
         // todo
 
-        return response()->json([]);        
+        return response()->json([]);
     }
 
     /**
@@ -926,10 +926,10 @@ class ApiV1Controller extends Controller
     public function accountFollowRequestReject(Request $request, $id)
     {
         abort_if(!$request->user(), 403);
-        
+
         // todo
 
-        return response()->json([]);        
+        return response()->json([]);
     }
 
     /**
@@ -942,10 +942,10 @@ class ApiV1Controller extends Controller
     public function accountSuggestions(Request $request)
     {
         abort_if(!$request->user(), 403);
-        
+
         // todo
 
-        return response()->json([]);        
+        return response()->json([]);
     }
 
     /**
@@ -957,33 +957,50 @@ class ApiV1Controller extends Controller
      */
     public function instance(Request $request)
     {
-        $res = [
-            'description' => 'Pixelfed - Photo sharing for everyone',
-            'email' => config('instance.email'),
-            'languages' => ['en'],
-            'max_toot_chars' => (int) config('pixelfed.max_caption_length'),
-            'registrations' => config('pixelfed.open_registration'),
-            'stats' => [
-                'user_count' => 0,
-                'status_count' => 0,
-                'domain_count' => 0
-            ],
-            'thumbnail' => config('app.url') . '/img/pixelfed-icon-color.png',
-            'title' => 'Pixelfed (' . config('pixelfed.domain.app') . ')',
-            'uri' => config('app.url'),
-            'urls' => [],
-            'version' => '2.7.2 (compatible; Pixelfed ' . config('pixelfed.version') . ')',
-            'environment' => [
-                'max_photo_size' => (int) config('pixelfed.max_photo_size'),
-                'max_avatar_size' => (int) config('pixelfed.max_avatar_size'),
-                'max_caption_length' => (int) config('pixelfed.max_caption_length'),
-                'max_bio_length' => (int) config('pixelfed.max_bio_length'),
-                'max_album_length' => (int) config('pixelfed.max_album_length'),
-                'mobile_apis' => config('pixelfed.oauth_enabled')
+    	$res = Cache::remember('api:v1:instance-data', now()->addMinutes(15), function () {
+	    	$rules = config_cache('app.rules') ? collect(json_decode(config_cache('app.rules'), true))
+	    		->map(function($rule, $key) {
+	    			$id = $key + 1;
+	    			return [
+	    				'id' => "{$id}",
+	    				'text' => $rule
+	    			];
+	    		})
+	    		->toArray() : [];
+	        $res = [
+	        	'approval_required' => false,
+	        	'contact_account' => null,
+	            'description' => config_cache('app.description'),
+	            'email' => config('instance.email'),
+	            'invites_enabled' => false,
+	            'rules' => $rules,
+	            'short_description' => 'Pixelfed - Photo sharing for everyone',
+	            'languages' => ['en'],
+	            'max_toot_chars' => (int) config('pixelfed.max_caption_length'),
+	            'registrations' => config_cache('pixelfed.open_registration'),
+	            'stats' => [
+	                'user_count' => 0,
+	                'status_count' => 0,
+	                'domain_count' => 0
+	            ],
+	            'thumbnail' => config('app.url') . '/img/pixelfed-icon-color.png',
+	            'title' => config_cache('app.name'),
+	            'uri' => config('pixelfed.domain.app'),
+	            'urls' => [],
+	            'version' => '2.7.2 (compatible; Pixelfed ' . config('pixelfed.version') . ')',
+	            'environment' => [
+	                'max_photo_size' => (int) config_cache('pixelfed.max_photo_size'),
+	                'max_avatar_size' => (int) config('pixelfed.max_avatar_size'),
+	                'max_caption_length' => (int) config('pixelfed.max_caption_length'),
+	                'max_bio_length' => (int) config('pixelfed.max_bio_length'),
+	                'max_album_length' => (int) config_cache('pixelfed.max_album_length'),
+	                'mobile_apis' => config_cache('pixelfed.oauth_enabled')
 
-            ]
-        ];
-        return response()->json($res, 200, [], JSON_PRETTY_PRINT);
+	            ]
+	        ];
+	        return $res;
+    	});
+        return response()->json($res);
     }
 
     /**
@@ -996,8 +1013,8 @@ class ApiV1Controller extends Controller
     public function accountLists(Request $request)
     {
         abort_if(!$request->user(), 403);
-        
-        return response()->json([]);        
+
+        return response()->json([]);
     }
 
     /**
@@ -1010,8 +1027,8 @@ class ApiV1Controller extends Controller
     public function accountListsById(Request $request, $id)
     {
         abort_if(!$request->user(), 403);
-        
-        return response()->json([]);        
+
+        return response()->json([]);
     }
 
     /**
@@ -1028,8 +1045,8 @@ class ApiV1Controller extends Controller
           'file.*'      => function() {
             return [
                 'required',
-                'mimes:' . config('pixelfed.media_types'),
-                'max:' . config('pixelfed.max_photo_size'),
+                'mimes:' . config_cache('pixelfed.media_types'),
+                'max:' . config_cache('pixelfed.max_photo_size'),
             ];
           },
           'filter_name' => 'nullable|string|max:24',
@@ -1054,11 +1071,11 @@ class ApiV1Controller extends Controller
 
         $profile = $user->profile;
 
-        if(config('pixelfed.enforce_account_limit') == true) {
+        if(config_cache('pixelfed.enforce_account_limit') == true) {
             $size = Cache::remember($user->storageUsedKey(), now()->addDays(3), function() use($user) {
                 return Media::whereUserId($user->id)->sum('size') / 1000;
-            }); 
-            $limit = (int) config('pixelfed.max_account_size');
+            });
+            $limit = (int) config_cache('pixelfed.max_account_size');
             if ($size >= $limit) {
                abort(403, 'Account size limit reached.');
             }
@@ -1069,7 +1086,7 @@ class ApiV1Controller extends Controller
 
         $photo = $request->file('file');
 
-        $mimes = explode(',', config('pixelfed.media_types'));
+        $mimes = explode(',', config_cache('pixelfed.media_types'));
         if(in_array($photo->getMimeType(), $mimes) == false) {
             abort(403, 'Invalid or unsupported mime type.');
         }
@@ -1092,7 +1109,7 @@ class ApiV1Controller extends Controller
         $media->filter_class = $filterClass;
         $media->filter_name = $filterName;
         $media->save();
-        
+
         switch ($media->mime) {
             case 'image/jpeg':
             case 'image/png':
@@ -1137,7 +1154,7 @@ class ApiV1Controller extends Controller
 
         $media->caption = $request->input('description');
         $media->save();
-        
+
         $resource = new Fractal\Resource\Item($media, new MediaTransformer());
         $res = $this->fractal->createData($resource)->toArray();
         $res['preview_url'] = url('/storage/no-preview.png');
@@ -1343,7 +1360,7 @@ class ApiV1Controller extends Controller
         $max = $request->input('max_id');
         $limit = $request->input('limit') ?? 3;
         $user = $request->user();
-        
+
         if($user->last_active_at) {
             $key = 'user:last_active_at:id:'.$user->id;
             $ttl = now()->addMinutes(5);
@@ -1365,11 +1382,11 @@ class ApiV1Controller extends Controller
             $dir = $min ? '>' : '<';
             $id = $min ?? $max;
             $timeline = Status::select(
-                        'id', 
+                        'id',
                         'uri',
                         'caption',
                         'rendered',
-                        'profile_id', 
+                        'profile_id',
                         'type',
                         'in_reply_to_id',
                         'reblog_of_id',
@@ -1393,11 +1410,11 @@ class ApiV1Controller extends Controller
                       ->get();
         } else {
             $timeline = Status::select(
-                        'id', 
+                        'id',
                         'uri',
                         'caption',
                         'rendered',
-                        'profile_id', 
+                        'profile_id',
                         'type',
                         'in_reply_to_id',
                         'reblog_of_id',
@@ -1458,7 +1475,7 @@ class ApiV1Controller extends Controller
         $max = $request->input('max_id');
         $limit = $request->input('limit') ?? 3;
         $user = $request->user();
-        
+
         if($user) {
             $key = 'user:last_active_at:id:'.$user->id;
             $ttl = now()->addMinutes(5);
@@ -1473,11 +1490,11 @@ class ApiV1Controller extends Controller
             $dir = $min ? '>' : '<';
             $id = $min ?? $max;
             $timeline = Status::select(
-                        'id', 
+                        'id',
                         'uri',
                         'caption',
                         'rendered',
-                        'profile_id', 
+                        'profile_id',
                         'type',
                         'in_reply_to_id',
                         'reblog_of_id',
@@ -1502,11 +1519,11 @@ class ApiV1Controller extends Controller
                       ->get();
         } else {
             $timeline = Status::select(
-                        'id', 
+                        'id',
                         'uri',
                         'caption',
                         'rendered',
-                        'profile_id', 
+                        'profile_id',
                         'type',
                         'in_reply_to_id',
                         'reblog_of_id',
@@ -1733,11 +1750,11 @@ class ApiV1Controller extends Controller
     public function statusCreate(Request $request)
     {
         abort_if(!$request->user(), 403);
-        
+
         $this->validate($request, [
             'status' => 'nullable|string',
             'in_reply_to_id' => 'nullable|integer',
-            'media_ids' => 'array|max:' . config('pixelfed.max_album_length'),
+            'media_ids' => 'array|max:' . config_cache('pixelfed.max_album_length'),
             'media_ids.*' => 'integer|min:1',
             'sensitive' => 'nullable|boolean',
             'visibility' => 'string|in:private,unlisted,public',
@@ -1779,9 +1796,9 @@ class ApiV1Controller extends Controller
         abort_if($limitReached == true, 429);
 
         $visibility = $profile->is_private ? 'private' : (
-            $profile->unlisted == true && 
-            $request->input('visibility', 'public') == 'public' ? 
-            'unlisted' : 
+            $profile->unlisted == true &&
+            $request->input('visibility', 'public') == 'public' ?
+            'unlisted' :
             $request->input('visibility', 'public'));
 
         if($user->last_active_at == null) {
@@ -1819,7 +1836,7 @@ class ApiV1Controller extends Controller
             $mimes = [];
 
             foreach($ids as $k => $v) {
-                if($k + 1 > config('pixelfed.max_album_length')) {
+                if($k + 1 > config_cache('pixelfed.max_album_length')) {
                     continue;
                 }
                 $m = Media::whereUserId($user->id)->whereNull('status_id')->findOrFail($v);
@@ -1874,7 +1891,7 @@ class ApiV1Controller extends Controller
         ->findOrFail($id);
 
         $resource = new Fractal\Resource\Item($status, new StatusTransformer());
-        
+
         Cache::forget('profile:status_count:'.$status->profile_id);
         StatusDelete::dispatch($status);
 
@@ -1894,7 +1911,7 @@ class ApiV1Controller extends Controller
     public function statusShare(Request $request, $id)
     {
         abort_if(!$request->user(), 403);
-        
+
         $user = $request->user();
         $status = Status::findOrFail($id);
 
@@ -1936,7 +1953,7 @@ class ApiV1Controller extends Controller
     public function statusUnshare(Request $request, $id)
     {
         abort_if(!$request->user(), 403);
-        
+
         $user = $request->user();
         $status = Status::findOrFail($id);
 
